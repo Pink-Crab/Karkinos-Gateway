@@ -1,0 +1,63 @@
+{
+    "name": "pinkcrab/perique-settings-page",
+    "type": "library",
+    "description": "Settings page extension for the Perique Admin Menu system.",
+    "keywords": [],
+    "homepage": "https://pinkcrab.co.uk",
+    "license": "MIT",
+    "authors": [{
+        "name": "Glynn Quelch",
+        "email": "glynn.quelch@pinkcrab.co.uk",
+        "homepage": "http://clappo.co.uk",
+        "role": "Developer"
+    }],
+    "autoload": {
+        "psr-4": {
+            "PinkCrab\\Perique_Settings_Page\\": "src"
+        },
+        "files": []
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PinkCrab\\Perique_Settings_Page\\Tests\\": "tests/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.0 || ^9.0",
+        "roots/wordpress": "6.9.*",
+        "wp-phpunit/wp-phpunit": "6.9.*",
+        "symfony/var-dumper": "*",
+        "phpstan/phpstan": "^1.0",
+        "szepeviktor/phpstan-wordpress": "^1.0",
+        "php-stubs/wordpress-stubs": "6.9.*",
+        "dealerdirect/phpcodesniffer-composer-installer": "*",
+        "wp-coding-standards/wpcs": "*",
+        "yoast/phpunit-polyfills": "^1.0.0 || ^2.0.0",
+        "gin0115/wpunit-helpers": "~1",
+        "vlucas/phpdotenv": "^5.4"
+    },
+    "require": {
+        "php": ">=8.0.0",
+        "pinkcrab/perique-framework-core": "2.1.*",
+        "pinkcrab/perique-admin-menu": "2.1.*",
+        "pinkcrab/form-components": "2.1.*",
+        "pinkcrab/collection": "^0.2.0",
+        "respect/validation": "^2.0"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit --colors=always --testdox --coverage-clover clover.xml",
+        "coverage": "vendor/bin/phpunit --colors=always --testdox --coverage-html coverage-report",
+        "analyse": "vendor/bin/phpstan analyse src -l8",
+        "sniff": "./vendor/bin/phpcs src/ -v",
+        "all": "composer coverage && composer analyse && composer sniff",
+        "e2e": "WP_BASE_URL=http://localhost:57894 npm run test:e2e"
+    },
+    "prefer-stable": true,
+    "minimum-stability": "dev",
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "roots/wordpress-core-installer": true
+        }
+    }
+}

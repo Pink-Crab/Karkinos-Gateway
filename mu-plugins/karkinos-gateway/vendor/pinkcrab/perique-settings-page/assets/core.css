@@ -1,0 +1,353 @@
+/**
+ * Perique Settings Page — Core (structural).
+ *
+ * Layout mechanics that must work regardless of theme. No colours,
+ * borders, shadows, fonts, transitions or visual decoration.
+ *
+ * Always enqueued by Settings_Page::enqueue().
+ */
+
+/* Form */
+.pc-form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+/* Field wrapper */
+.pc-form__element {
+	padding: 0;
+	margin-bottom: 16px;
+}
+
+.pc-form__element:last-child {
+	margin-bottom: 0;
+}
+
+/* Labels */
+.pc-form__label,
+.pc-form__element legend {
+	display: block;
+	margin-bottom: 8px;
+}
+
+/* All inputs: block + full width */
+.pc-form__element input[type="text"],
+.pc-form__element input[type="number"],
+.pc-form__element input[type="email"],
+.pc-form__element input[type="url"],
+.pc-form__element input[type="tel"],
+.pc-form__element input[type="password"],
+.pc-form__element input[type="search"],
+.pc-form__element select,
+.pc-form__element textarea {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* Checkbox + Radio group options */
+.checkbox-group__option,
+.radio-group__option {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.checkbox-group__option input,
+.radio-group__option input {
+	margin: 0;
+}
+
+/* Single checkbox */
+.pc-form__element--checkbox_input {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 12px;
+}
+
+.pc-form__element--checkbox_input .pc-form__label {
+	display: inline;
+	margin-bottom: 0;
+	cursor: pointer;
+}
+
+/* Label position: after input */
+.pc-form__element--label-after {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.pc-form__element--label-after .pc-form__label {
+	order: 1;
+	margin-bottom: 0;
+	cursor: pointer;
+}
+
+/* Hidden fields */
+.pc-form__element--hidden_input {
+	display: none;
+}
+
+/* Layout: Row */
+.pc-form__row {
+	display: grid;
+	gap: 16px;
+}
+
+.pc-form__row > .pc-form__element {
+	margin-bottom: 0;
+}
+
+/* Layout: Grid */
+.pc-form__grid {
+	display: grid;
+	gap: 16px;
+}
+
+.pc-form__grid > .pc-form__element {
+	margin-bottom: 0;
+}
+
+/* Layout: Stack */
+.pc-form__stack {
+	display: flex;
+	flex-direction: column;
+}
+
+.pc-form__stack > .pc-form__element {
+	margin-bottom: 0;
+}
+
+/* Layout: Section */
+.pc-form__section {
+	overflow: hidden;
+}
+
+.pc-form__section-header {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+[data-collapsible="true"] .pc-form__section-header {
+	cursor: pointer;
+	user-select: none;
+}
+
+.pc-form__section-title {
+	margin: 0;
+}
+
+.pc-form__section-description {
+	margin: 0;
+}
+
+.pc-form__section-toggle {
+	margin-left: auto;
+	cursor: pointer;
+	transition: transform 0.2s;
+}
+
+[data-collapsed="true"] .pc-form__section-toggle {
+	transform: rotate(-90deg);
+}
+
+.pc-form__section-body {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.pc-form__section-body > * {
+	margin-bottom: 0;
+}
+
+/* Section RTL */
+.pc-form__section--rtl .pc-form__section-header {
+	flex-direction: row-reverse;
+}
+
+.pc-form__section--rtl .pc-form__section-toggle {
+	margin-left: 0;
+	margin-right: auto;
+}
+
+/* Layout: Divider */
+.pc-form__divider {
+	border: none;
+}
+
+/* Layout: Notice */
+.pc-form__notice {
+	margin: 0;
+}
+
+.pc-form__notice p {
+	margin: 0;
+}
+
+/* Media Library */
+.pc-settings-media-upload {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	margin: 8px 0;
+}
+
+.pc-settings-media-upload__dropzone {
+	cursor: pointer;
+}
+
+.pc-settings-media-upload__preview figure {
+	margin: 0;
+}
+
+.pc-settings-media-upload__preview img[src=""] {
+	display: none;
+}
+
+/* Repeater */
+.pc-repeater__groups {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.pc-repeater__group {
+	overflow: hidden;
+}
+
+.pc-repeater__group-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.pc-repeater__drag-handle {
+	cursor: grab;
+	user-select: none;
+}
+
+.pc-repeater__drag-handle:active {
+	cursor: grabbing;
+}
+
+.pc-repeater__remove {
+	background: none;
+	border: none;
+	cursor: pointer;
+	line-height: 1;
+}
+
+.pc-repeater__group-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.pc-repeater__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.pc-repeater__input {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+select.pc-repeater__input {
+	max-width: 100%;
+}
+
+input[type="checkbox"].pc-repeater__input {
+	width: auto;
+}
+
+/* Drag state */
+.pc-repeater__group--dragging {
+	opacity: 0.5;
+}
+
+.pc-repeater__group--drag-over {
+	outline: 2px dashed currentColor;
+	outline-offset: -2px;
+}
+
+/* Picker */
+.pc-picker {
+	position: relative;
+}
+
+.pc-picker__selected {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.pc-picker__selected:empty {
+	margin-bottom: 0;
+}
+
+.pc-picker__tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.pc-picker__tag-remove {
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+
+.pc-picker__search-wrap {
+	position: relative;
+}
+
+.pc-picker__search {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.pc-picker__dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 100;
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.pc-picker__option {
+	cursor: pointer;
+}
+
+/* Required indicator */
+.pc-form__element:has(input[required]) > .pc-form__label::after,
+.pc-form__element:has(select[required]) > .pc-form__label::after,
+.pc-form__element:has(textarea[required]) > .pc-form__label::after {
+	content: '*';
+	color: #d63638;
+	margin-left: 2px;
+}
+
+/* Grouped error list */
+.pc-settings-error-list {
+	margin: 4px 0 0;
+	padding-left: 20px;
+}
+
+.pc-form__section-header {
+	margin-bottom: 20px;
+}

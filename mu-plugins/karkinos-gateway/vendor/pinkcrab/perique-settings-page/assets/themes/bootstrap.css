@@ -1,0 +1,1014 @@
+/**
+ * Perique Settings Page — Bootstrap Theme (floating labels).
+ *
+ * Bootstrap 5 styled form with .form-floating behaviour: labels sit
+ * inside the input at rest, shrink to the top edge on focus or when
+ * the input has a value. Matches Bootstrap 5's primary colour palette,
+ * border radii and focus rings.
+ */
+
+:root {
+	--pc-sp-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", sans-serif;
+	--pc-sp-bg: #ffffff;
+	--pc-sp-bg-alt: #f8f9fa;
+	--pc-sp-surface: #ffffff;
+	--pc-sp-border: #ced4da;
+	--pc-sp-border-light: #dee2e6;
+	--pc-sp-text: #212529;
+	--pc-sp-text-secondary: #495057;
+	--pc-sp-text-muted: #6c757d;
+	--pc-sp-accent: #0d6efd;
+	--pc-sp-accent-hover: #0b5ed7;
+	--pc-sp-accent-light: #cfe2ff;
+	--pc-sp-accent-focus-ring: rgba(13, 110, 253, 0.25);
+	--pc-sp-on-accent: #ffffff;
+	--pc-sp-error: #dc3545;
+	--pc-sp-error-hover: #bb2d3b;
+	--pc-sp-error-light: #f8d7da;
+	--pc-sp-error-focus-ring: rgba(220, 53, 69, 0.25);
+	--pc-sp-success: #198754;
+	--pc-sp-success-light: #d1e7dd;
+	--pc-sp-radius: 0.375rem;
+	--pc-sp-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* ─── Form ─── */
+.pc-form {
+	font-family: var(--pc-sp-font);
+	color: var(--pc-sp-text);
+	padding: 1.5rem;
+	font-size: 1rem;
+}
+
+/* Consistent bottom margin on ALL field wrappers */
+.pc-form__element {
+	margin-bottom: 1.25rem;
+}
+
+.pc-form__element:last-child {
+	margin-bottom: 0;
+}
+
+/* ─── Floating label text fields ───
+ *
+ * Bootstrap 5 .form-floating pattern: label is inside the wrapper,
+ * absolute-positioned, translates and scales on focus/filled.
+ */
+
+.pc-form__element--text_input,
+.pc-form__element--number_input,
+.pc-form__element--email_input,
+.pc-form__element--url_input,
+.pc-form__element--tel_input,
+.pc-form__element--password_input {
+	position: relative;
+}
+
+.pc-form__element--text_input input,
+.pc-form__element--number_input input,
+.pc-form__element--email_input input,
+.pc-form__element--url_input input,
+.pc-form__element--tel_input input,
+.pc-form__element--password_input input {
+	width: 100%;
+	height: calc(3.5rem + 2px);
+	padding: 1rem 0.75rem;
+	font-size: 1rem;
+	line-height: 1.25;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+	-webkit-appearance: none;
+}
+
+.pc-form__element--text_input input:focus,
+.pc-form__element--number_input input:focus,
+.pc-form__element--email_input input:focus,
+.pc-form__element--url_input input:focus,
+.pc-form__element--tel_input input:focus,
+.pc-form__element--password_input input:focus {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.25rem var(--pc-sp-accent-focus-ring);
+}
+
+.pc-form__element--text_input input::placeholder,
+.pc-form__element--number_input input::placeholder,
+.pc-form__element--email_input input::placeholder,
+.pc-form__element--url_input input::placeholder,
+.pc-form__element--tel_input input::placeholder,
+.pc-form__element--password_input input::placeholder {
+	color: transparent !important;
+}
+
+/* Label: resting — inside the input */
+.pc-form__element--text_input > .pc-form__label,
+.pc-form__element--number_input > .pc-form__label,
+.pc-form__element--email_input > .pc-form__label,
+.pc-form__element--url_input > .pc-form__label,
+.pc-form__element--tel_input > .pc-form__label,
+.pc-form__element--password_input > .pc-form__label {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 100%;
+	padding: 1rem 0.75rem;
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--pc-sp-text-muted);
+	pointer-events: none;
+	border: 1px solid transparent;
+	transform-origin: 0 0;
+	transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+	margin: 0;
+	line-height: 1.25;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Label: floated on focus or when input has content */
+.pc-form__element--text_input:focus-within > .pc-form__label,
+.pc-form__element--number_input:focus-within > .pc-form__label,
+.pc-form__element--email_input:focus-within > .pc-form__label,
+.pc-form__element--url_input:focus-within > .pc-form__label,
+.pc-form__element--tel_input:focus-within > .pc-form__label,
+.pc-form__element--password_input:focus-within > .pc-form__label,
+.pc-form__element--text_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--number_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--email_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--url_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--tel_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--password_input:has(input:not(:placeholder-shown)) > .pc-form__label {
+	opacity: 0.65;
+	transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+	color: var(--pc-sp-text-secondary);
+}
+
+/* Shift input padding when label is floated so text doesn't overlap */
+.pc-form__element--text_input:focus-within input,
+.pc-form__element--number_input:focus-within input,
+.pc-form__element--email_input:focus-within input,
+.pc-form__element--url_input:focus-within input,
+.pc-form__element--tel_input:focus-within input,
+.pc-form__element--password_input:focus-within input,
+.pc-form__element--text_input:has(input:not(:placeholder-shown)) input,
+.pc-form__element--number_input:has(input:not(:placeholder-shown)) input,
+.pc-form__element--email_input:has(input:not(:placeholder-shown)) input,
+.pc-form__element--url_input:has(input:not(:placeholder-shown)) input,
+.pc-form__element--tel_input:has(input:not(:placeholder-shown)) input,
+.pc-form__element--password_input:has(input:not(:placeholder-shown)) input {
+	padding-top: 1.625rem;
+	padding-bottom: 0.375rem;
+}
+
+/* Number field */
+.pc-form__element--number_input input[type="number"] {
+	max-width: none;
+}
+
+/* ─── Textarea ─── */
+.pc-form__element--textarea {
+	position: relative;
+}
+
+.pc-form__element textarea {
+	width: 100%;
+	min-height: calc(3.5rem + 2px);
+	padding: 1rem 0.75rem;
+	font-size: 1rem;
+	line-height: 1.5;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.pc-form__element textarea:focus {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.25rem var(--pc-sp-accent-focus-ring);
+}
+
+.pc-form__element textarea::placeholder {
+	color: transparent !important;
+}
+
+.pc-form__element--textarea > .pc-form__label {
+	position: absolute;
+	top: 0;
+	left: 0;
+	padding: 1rem 0.75rem;
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--pc-sp-text-muted);
+	pointer-events: none;
+	transform-origin: 0 0;
+	transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+	margin: 0;
+	line-height: 1.25;
+}
+
+.pc-form__element--textarea:focus-within > .pc-form__label,
+.pc-form__element--textarea:has(textarea:not(:placeholder-shown)) > .pc-form__label {
+	opacity: 0.65;
+	transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+	color: var(--pc-sp-text-secondary);
+}
+
+.pc-form__element--textarea:focus-within textarea,
+.pc-form__element--textarea:has(textarea:not(:placeholder-shown)) textarea {
+	padding-top: 1.625rem;
+}
+
+/* ─── Select ─── */
+.pc-form__element--select {
+	position: relative;
+}
+
+.pc-form__element select {
+	width: 100% !important;
+	max-width: 100% !important;
+	height: calc(3.5rem + 2px);
+	padding: 1rem 2.5rem 1rem 0.75rem;
+	font-size: 1rem;
+	line-height: 1.25;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.75rem center;
+	background-size: 16px 12px;
+}
+
+.pc-form__element select:focus {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.25rem var(--pc-sp-accent-focus-ring);
+}
+
+.pc-form__element--select > .pc-form__label {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 100%;
+	padding: 1rem 0.75rem;
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--pc-sp-text-muted);
+	pointer-events: none;
+	transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+	transform-origin: 0 0;
+	opacity: 0.65;
+	margin: 0;
+	line-height: 1.25;
+	z-index: 2;
+}
+
+.pc-form__element--select select {
+	padding-top: 1.625rem;
+	padding-bottom: 0.375rem;
+}
+
+/* Multi-select — no dropdown chevron, flexible height */
+.pc-form__element--select select[multiple] {
+	height: auto;
+	min-width: 100%;
+	min-height: 8rem;
+	padding: 0.5rem 0.75rem;
+	background-image: none;
+}
+
+.pc-form__element--select:has(select[multiple]) > .pc-form__label {
+	position: static;
+	height: auto;
+	padding: 0;
+	transform: none;
+	opacity: 1;
+	color: var(--pc-sp-text-secondary);
+	font-size: 1rem;
+	font-weight: 500;
+	margin-bottom: 0.5rem;
+}
+
+.pc-form__element--select select[multiple] option {
+	padding: 0.375rem 0.5rem;
+}
+
+.pc-form__element--select select[multiple] option:checked {
+	background: var(--pc-sp-accent-light);
+	color: #0a58ca;
+}
+
+/* ─── Descriptions ─── */
+.pc-form__description,
+.pc-form__element .description {
+	color: var(--pc-sp-text-muted);
+	font-size: 0.875rem;
+	line-height: 1.5;
+	margin: 0.25rem 0 0;
+}
+
+/* ─── Checkbox + Radio groups — Bootstrap form-check style ─── */
+.pc-form__element--checkbox_group > .pc-form__label,
+.pc-form__element--radio_group > .pc-form__label {
+	display: block;
+	font-size: 1rem;
+	font-weight: 500;
+	color: var(--pc-sp-text);
+	margin-bottom: 0.5rem;
+}
+
+.checkbox-group__option,
+.radio-group__option {
+	padding: 0.25rem 0;
+	font-size: 1rem;
+	line-height: 1.5;
+	gap: 0.5rem;
+}
+
+.checkbox-group__option:hover,
+.radio-group__option:hover {
+	color: var(--pc-sp-accent);
+}
+
+.checkbox-group__option input,
+.radio-group__option input {
+	width: 1rem;
+	height: 1rem;
+	margin-top: 0.25rem;
+	cursor: pointer;
+	accent-color: var(--pc-sp-accent);
+}
+
+/* ─── Single checkbox — Bootstrap form-switch vibes ─── */
+.pc-form__element--checkbox_input {
+	gap: 0.5rem;
+}
+
+.pc-form__element--checkbox_input .pc-form__label {
+	font-weight: 400;
+	font-size: 1rem;
+	color: var(--pc-sp-text);
+}
+
+.pc-form__element--checkbox_input:hover .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+.pc-form__element--checkbox_input input[type="checkbox"] {
+	width: 1rem;
+	height: 1rem;
+	accent-color: var(--pc-sp-accent);
+	cursor: pointer;
+}
+
+/* ─── Colour picker ─── */
+.pc-form__element--color_input {
+	position: relative;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	padding: 0.75rem 1rem;
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.pc-form__element--color_input:focus-within {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.25rem var(--pc-sp-accent-focus-ring);
+}
+
+.pc-form__element--color_input > .pc-form__label {
+	position: absolute;
+	left: 0.75rem;
+	top: 0;
+	transform: translateY(-50%) scale(0.85);
+	font-size: 1rem;
+	font-weight: 400;
+	color: var(--pc-sp-text-secondary);
+	background: var(--pc-sp-surface);
+	padding: 0 0.375rem;
+	margin: 0;
+	pointer-events: none;
+	z-index: 2;
+	line-height: 1;
+	transform-origin: 0 0;
+}
+
+.pc-form__element--color_input input[type="color"] {
+	order: 0;
+	width: 2.5rem;
+	height: 2.5rem;
+	padding: 0;
+	border: 1px solid var(--pc-sp-border-light);
+	border-radius: 50%;
+	cursor: pointer;
+	background: none;
+	-webkit-appearance: none;
+	appearance: none;
+	flex-shrink: 0;
+}
+
+.pc-form__element--color_input input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 2px;
+}
+
+.pc-form__element--color_input input[type="color"]::-webkit-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+.pc-form__element--color_input input[type="color"]::-moz-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+.pc-form__element--color_input .pc-color-hex {
+	order: 2;
+	font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+	font-size: 0.9375rem;
+	color: var(--pc-sp-text);
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+}
+
+.pc-form__element--color_input .pc-form__description,
+.pc-form__element--color_input .description {
+	order: 3;
+	margin: 0 0 0 auto;
+	font-size: 0.8125rem;
+}
+
+/* ─── Label-after hover ─── */
+.pc-form__element--label-after:hover .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+/* ─── Submit — btn btn-primary ─── */
+.pc-form__element--submit_input {
+	padding: 0.5rem 0;
+}
+
+.pc-form__element--submit_input input[type="submit"] {
+	display: inline-block;
+	padding: 0.5rem 1.25rem;
+	font-size: 1rem;
+	font-weight: 400;
+	font-family: inherit;
+	line-height: 1.5;
+	color: var(--pc-sp-on-accent);
+	background: var(--pc-sp-accent);
+	border: 1px solid var(--pc-sp-accent);
+	border-radius: var(--pc-sp-radius);
+	cursor: pointer;
+	transition: background 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.pc-form__element--submit_input input[type="submit"]:hover {
+	background: var(--pc-sp-accent-hover);
+	border-color: #0a58ca;
+}
+
+.pc-form__element--submit_input input[type="submit"]:focus {
+	box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.5);
+}
+
+.pc-form__element--submit_input input[type="submit"]:active {
+	background: #0a58ca;
+}
+
+/* ─── WP Editor ─── */
+.pc-form__element--wp_editor {
+	padding: 0;
+}
+
+.pc-form__element--wp_editor > .pc-form__label,
+.pc-form__element--media_library > .pc-form__label,
+.pc-form__element--repeater > .pc-form__label,
+.pc-form__element--raw_html:has(.pc-repeater) > .pc-form__label {
+	display: block;
+	font-weight: 500;
+	font-size: 1rem;
+	color: var(--pc-sp-text);
+	margin-bottom: 0.5rem;
+}
+
+.pc-form__element--wp_editor .wp-editor-wrap {
+	border-radius: var(--pc-sp-radius);
+	overflow: hidden;
+	border: 1px solid var(--pc-sp-border);
+}
+
+/* ─── Media Library — dropzone ─── */
+.pc-settings-media-upload {
+	position: relative;
+}
+
+.pc-settings-media-upload__dropzone {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 10rem;
+	border: 2px dashed var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-bg-alt);
+	cursor: pointer;
+	transition: border-color 0.15s ease-in-out, background 0.15s ease-in-out;
+	padding: 1.5rem;
+}
+
+.pc-settings-media-upload__dropzone:hover {
+	border-color: var(--pc-sp-accent);
+	background: var(--pc-sp-accent-light);
+}
+
+.pc-settings-media-upload__placeholder {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.pc-settings-media-upload__icon {
+	color: var(--pc-sp-text-muted);
+	opacity: 0.6;
+}
+
+.pc-settings-media-upload__dropzone:hover .pc-settings-media-upload__icon {
+	color: var(--pc-sp-accent);
+	opacity: 1;
+}
+
+.pc-settings-media-upload__text {
+	font-size: 0.9375rem;
+	color: var(--pc-sp-text-muted);
+	margin: 0;
+}
+
+.pc-settings-media-upload__dropzone:hover .pc-settings-media-upload__text {
+	color: var(--pc-sp-accent);
+}
+
+.pc-settings-media-upload__preview {
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.pc-settings-media-upload__preview img {
+	max-width: 12rem;
+	max-height: 10rem;
+	border-radius: var(--pc-sp-radius);
+	object-fit: cover;
+}
+
+.pc-settings-media-upload__preview img[src=""] {
+	display: none !important;
+}
+
+.pc-settings-media-upload__preview figcaption {
+	font-size: 0.8125rem;
+	color: var(--pc-sp-text-muted);
+	text-align: center;
+}
+
+.pc-settings-media-upload:has(input[data-media-library-file-name][value]:not([value=""])) .pc-settings-media-upload__preview {
+	display: flex;
+}
+
+.pc-settings-media-upload:has(input[data-media-library-file-name][value]:not([value=""])) .pc-settings-media-upload__placeholder {
+	display: none;
+}
+
+.pc-settings-media-upload > .pc-settings-media-clear {
+	display: none;
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	z-index: 3;
+	width: 1.75rem;
+	height: 1.75rem;
+	padding: 0;
+	font-size: 1rem;
+	font-weight: 700;
+	line-height: 1.625rem;
+	text-align: center;
+	color: var(--pc-sp-on-accent);
+	background: var(--pc-sp-error);
+	border: none;
+	border-radius: 50%;
+	cursor: pointer;
+	transition: background 0.15s ease-in-out;
+}
+
+.pc-settings-media-upload > .pc-settings-media-clear:hover {
+	background: var(--pc-sp-error-hover);
+}
+
+.pc-settings-media-upload:has(input[data-media-library-file-name][value]:not([value=""])) > .pc-settings-media-clear {
+	display: block;
+}
+
+/* ─── Repeater ─── */
+.pc-repeater__groups {
+	gap: 0.75rem !important;
+}
+
+.pc-repeater__group {
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	box-shadow: var(--pc-sp-shadow);
+}
+
+.pc-repeater__group-header {
+	padding: 0.5rem 1rem;
+	background: var(--pc-sp-bg-alt);
+	border-bottom: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius) var(--pc-sp-radius) 0 0;
+}
+
+.pc-repeater__drag-handle {
+	font-size: 1.125rem;
+	color: var(--pc-sp-text-muted);
+	padding: 0.125rem 0.25rem;
+}
+
+.pc-repeater__remove {
+	font-size: 1.25rem;
+	color: var(--pc-sp-text-muted);
+	padding: 0.125rem 0.5rem;
+	border-radius: var(--pc-sp-radius);
+	transition: color 0.15s ease-in-out, background 0.15s ease-in-out;
+}
+
+.pc-repeater__remove:hover {
+	color: var(--pc-sp-error);
+	background: var(--pc-sp-error-light);
+}
+
+.pc-repeater__group-fields {
+	padding: 1.25rem 1rem 1rem;
+	gap: 1rem !important;
+}
+
+.pc-repeater__field-input {
+	display: flex;
+}
+
+.pc-repeater__actions {
+	margin-top: 1rem;
+}
+
+.pc-repeater__add.button {
+	display: inline-block;
+	padding: 0.5rem 1.25rem;
+	font-size: 1rem;
+	font-weight: 400;
+	font-family: inherit;
+	line-height: 1.5;
+	color: var(--pc-sp-on-accent);
+	background: var(--pc-sp-accent);
+	border: 1px solid var(--pc-sp-accent);
+	border-radius: var(--pc-sp-radius);
+	cursor: pointer;
+	transition: background 0.15s ease-in-out, border-color 0.15s ease-in-out;
+	box-shadow: none;
+	height: auto;
+}
+
+.pc-repeater__add.button:hover {
+	background: var(--pc-sp-accent-hover);
+	border-color: #0a58ca;
+}
+
+/* ─── Field Group ─── */
+.pc-form__element--field_group {
+	padding: 1.25rem 1rem 1rem;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+}
+
+.pc-form__element--field_group .pc-form__label--group {
+	display: block;
+	font-weight: 500;
+	font-size: 1rem;
+	color: var(--pc-sp-text);
+	margin-bottom: 0.75rem;
+	padding: 0;
+}
+
+/* ─── Section — Bootstrap card style ─── */
+.pc-form__section {
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	box-shadow: none;
+}
+
+.pc-form__section-header {
+	padding: 0.75rem 1.25rem;
+	background: var(--pc-sp-bg-alt);
+	border-bottom: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius) var(--pc-sp-radius) 0 0;
+}
+
+.pc-form__section-title {
+	font-size: 1.125rem;
+	font-weight: 500;
+	color: var(--pc-sp-text);
+	margin: 0;
+}
+
+.pc-form__section-description {
+	padding: 0 1.25rem 0.75rem;
+	font-size: 0.9375rem;
+	color: var(--pc-sp-text-muted);
+	line-height: 1.5;
+}
+
+.pc-form__section-toggle {
+	font-size: 0.625rem;
+	color: var(--pc-sp-text-muted);
+}
+
+.pc-form__section-body {
+	padding: 1.25rem;
+	gap: 1rem !important;
+}
+
+/* ─── Divider ─── */
+.pc-form__divider {
+	border-top: 1px solid var(--pc-sp-border);
+	margin: -0.75rem 0;
+}
+
+/* ─── Notices — Bootstrap alert style ─── */
+.pc-form__notice {
+	padding: 0.75rem 1.25rem;
+	font-size: 0.9375rem;
+	line-height: 1.5;
+	border-radius: var(--pc-sp-radius);
+	border: 1px solid transparent;
+}
+
+.pc-form__section-body > .pc-form__element:first-child .pc-form__notice {
+	margin: -1.25rem -1.25rem 0 -1.25rem;
+	border-radius: 0;
+	border-left: none;
+	border-right: none;
+	border-top: none;
+}
+
+.pc-form__notice--info {
+	background: var(--pc-sp-accent-light);
+	color: #084298;
+	border-color: #b6d4fe;
+}
+
+.pc-form__notice--warning {
+	background: #fff3cd;
+	color: #664d03;
+	border-color: #ffecb5;
+}
+
+.pc-form__notice--error {
+	background: var(--pc-sp-error-light);
+	color: #842029;
+	border-color: #f5c2c7;
+}
+
+.pc-form__notice--success {
+	background: var(--pc-sp-success-light);
+	color: #0f5132;
+	border-color: #badbcc;
+}
+
+/* ─── Validation error state (Bootstrap .is-invalid) ─── */
+.pc-form__element--text_input:has(.notification-error) input,
+.pc-form__element--number_input:has(.notification-error) input,
+.pc-form__element--email_input:has(.notification-error) input,
+.pc-form__element--url_input:has(.notification-error) input,
+.pc-form__element--tel_input:has(.notification-error) input,
+.pc-form__element--password_input:has(.notification-error) input,
+.pc-form__element:has(.notification-error) select,
+.pc-form__element:has(.notification-error) textarea {
+	border-color: var(--pc-sp-error) !important;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3E%3Ccircle cx='6' cy='6' r='4.5'/%3E%3Cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3E%3Ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right calc(0.375em + 0.1875rem) center;
+	background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+	padding-right: calc(1.5em + 0.75rem);
+}
+
+.pc-form__element:has(.notification-error) input:focus,
+.pc-form__element:has(.notification-error) select:focus,
+.pc-form__element:has(.notification-error) textarea:focus {
+	border-color: var(--pc-sp-error) !important;
+	box-shadow: 0 0 0 0.25rem var(--pc-sp-error-focus-ring) !important;
+}
+
+.pc-form__element:has(.notification-error) > .pc-form__label {
+	color: var(--pc-sp-error) !important;
+}
+
+/* Notifications */
+.pc-form__notification {
+	display: block;
+	width: 100%;
+	margin-top: 0.25rem;
+	font-size: 0.875rem;
+}
+
+.pc-form__notification--error {
+	color: var(--pc-sp-error);
+}
+
+.pc-form__notification--success {
+	color: var(--pc-sp-success);
+}
+
+/* Field-level error */
+.pc-form__field-error {
+	margin: 0.25rem 0 0;
+	padding: 0;
+	font-size: 0.875rem;
+	color: var(--pc-sp-error);
+	background: none;
+	border: none;
+}
+
+.pc-form__element--has-error .pc-form__element__field {
+	border-color: var(--pc-sp-error);
+}
+
+/* Checkbox/radio: push description + notification below */
+.pc-form__element--checkbox_input > .pc-form__description,
+.pc-form__element--checkbox_input > p.description,
+.pc-form__element--label-after > .pc-form__description,
+.pc-form__element--label-after > p.description {
+	flex-basis: 100%;
+	order: 10 !important;
+	padding-left: 0;
+	margin-top: 0.25rem;
+}
+
+.pc-form__element--checkbox_input > .pc-form__notification,
+.pc-form__element--label-after > .pc-form__notification {
+	flex-basis: 100%;
+	order: 20 !important;
+	padding-left: 0;
+	margin-top: 0.25rem;
+}
+
+/* ─── Picker (tags + search in one outlined container) ─── */
+.pc-form__element:has(.pc-picker) {
+	position: relative;
+}
+
+.pc-form__element:has(.pc-picker) > .pc-form__label {
+	display: block;
+	font-weight: 500;
+	font-size: 1rem;
+	color: var(--pc-sp-text);
+	margin-bottom: 0.5rem;
+}
+
+.pc-picker {
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	padding: 0.5rem 0.75rem;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.375rem;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+	cursor: text;
+}
+
+.pc-picker:focus-within {
+	border-color: #86b7fe;
+	box-shadow: 0 0 0 0.25rem var(--pc-sp-accent-focus-ring);
+}
+
+.pc-picker__selected {
+	display: contents;
+}
+
+.pc-picker__selected:empty {
+	display: none;
+}
+
+.pc-picker__search-wrap {
+	flex: 1;
+	min-width: 5rem;
+}
+
+.pc-picker__tag {
+	padding: 0.25rem 0.625rem;
+	font-size: 0.875rem;
+	background: var(--pc-sp-accent-light);
+	color: #084298;
+	border: 1px solid #b6d4fe;
+	border-radius: 50rem;
+	line-height: 1.4;
+}
+
+.pc-picker__tag-remove {
+	font-size: 1rem;
+	line-height: 1;
+	color: #084298;
+	padding: 0 0.125rem;
+	margin-left: 0.25rem;
+}
+
+.pc-picker__tag-remove:hover {
+	color: var(--pc-sp-error);
+}
+
+.pc-picker__search {
+	padding: 0.25rem 0;
+	font-size: 1rem;
+	border: none !important;
+	border-radius: 0;
+	background: transparent !important;
+	color: var(--pc-sp-text);
+	outline: none !important;
+	box-shadow: none !important;
+	width: 100%;
+}
+
+.pc-picker__search:focus {
+	border: none !important;
+	box-shadow: none !important;
+}
+
+.pc-picker__selected:not(:empty) ~ .pc-picker__search-wrap .pc-picker__search::placeholder {
+	color: transparent;
+}
+
+.pc-picker__dropdown {
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-top: none;
+	border-radius: 0 0 var(--pc-sp-radius) var(--pc-sp-radius);
+	box-shadow: var(--pc-sp-shadow);
+}
+
+.pc-picker__option {
+	padding: 0.5rem 0.75rem;
+	font-size: 1rem;
+	color: var(--pc-sp-text);
+	transition: background 0.1s ease-in-out;
+}
+
+.pc-picker__option:hover,
+.pc-picker__option--highlighted {
+	background: var(--pc-sp-accent-light);
+	color: #084298;
+}
+
+.pc-picker__no-results,
+.pc-picker__loading {
+	padding: 0.5rem 0.75rem;
+	color: var(--pc-sp-text-muted);
+	font-size: 0.9375rem;
+	font-style: italic;
+}
+
+/* ─── Layout gaps ─── */
+.pc-form__row {
+	gap: 1rem !important;
+}
+
+.pc-form__grid {
+	gap: 1rem !important;
+}
+
+.pc-form__stack {
+	gap: 1rem !important;
+}
+
+.pc-form__row > [class*="pc-form__element"],
+.pc-form__grid > [class*="pc-form__element"],
+.pc-form__stack > [class*="pc-form__element"] {
+	margin-bottom: 0 !important;
+}

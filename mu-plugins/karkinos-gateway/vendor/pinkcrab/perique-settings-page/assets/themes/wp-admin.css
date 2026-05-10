@@ -1,0 +1,496 @@
+/**
+ * Perique Settings Page — WP Admin Theme.
+ *
+ * Blends with the native WordPress admin dashboard look: WP colours,
+ * small font sizes, minimal decoration, leverages WP's own variables.
+ */
+
+:root {
+	--pc-sp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	--pc-sp-bg: #ffffff;
+	--pc-sp-bg-alt: #f0f0f1;
+	--pc-sp-border: #c3c4c7;
+	--pc-sp-border-light: #dcdcde;
+	--pc-sp-text: #1d2327;
+	--pc-sp-text-secondary: #50575e;
+	--pc-sp-text-muted: #8c8f94;
+	--pc-sp-accent: #2271b1;
+	--pc-sp-accent-hover: #135e96;
+	--pc-sp-accent-light: #f0f6fc;
+	--pc-sp-error: #d63638;
+	--pc-sp-error-light: #fcf0f1;
+	--pc-sp-success: #00a32a;
+	--pc-sp-success-light: #edfaef;
+	--pc-sp-radius: 4px;
+	--pc-sp-shadow: none;
+}
+
+/* Form */
+.pc-form {
+	font-family: var(--pc-sp-font);
+	color: var(--pc-sp-text);
+	padding: 20px 0;
+	font-size: 13px;
+}
+
+/* Labels */
+.pc-form__label,
+.pc-form__element legend {
+	font-weight: 600;
+	font-size: 13px;
+	line-height: 1.4;
+	color: var(--pc-sp-text);
+}
+
+/* Descriptions */
+.pc-form__element .description,
+.pc-form__element p.description {
+	color: var(--pc-sp-text-muted);
+	font-size: 13px;
+	font-style: italic;
+	line-height: 1.5;
+	margin: 4px 0 0;
+}
+
+/* Inputs — WP admin style */
+.pc-form__element input[type="text"],
+.pc-form__element input[type="number"],
+.pc-form__element input[type="email"],
+.pc-form__element input[type="url"],
+.pc-form__element input[type="tel"],
+.pc-form__element input[type="password"],
+.pc-form__element input[type="search"],
+.pc-form__element select,
+.pc-form__element textarea {
+	padding: 4px 8px;
+	font-size: 13px;
+	line-height: 2;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-bg);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	transition: border-color 0.1s;
+	-webkit-appearance: none;
+}
+
+.pc-form__element input:focus,
+.pc-form__element select:focus,
+.pc-form__element textarea:focus {
+	border-color: var(--pc-sp-accent);
+	box-shadow: 0 0 0 1px var(--pc-sp-accent);
+}
+
+.pc-form__element input::placeholder {
+	color: var(--pc-sp-text-muted);
+}
+
+.pc-form__element input[type="number"] {
+	max-width: 100px;
+}
+
+.pc-form__element select {
+	padding-right: 24px;
+	cursor: pointer;
+}
+
+/* Checkbox + Radio groups */
+.checkbox-group__option,
+.radio-group__option {
+	padding: 2px 0;
+	font-size: 13px;
+}
+
+.checkbox-group__option:hover,
+.radio-group__option:hover {
+	color: var(--pc-sp-accent);
+}
+
+.checkbox-group__option input,
+.radio-group__option input {
+	width: 16px;
+	height: 16px;
+	cursor: pointer;
+}
+
+/* Single checkbox */
+.pc-form__element--checkbox_input .pc-form__label {
+	font-weight: 400;
+	font-size: 13px;
+}
+
+.pc-form__element--checkbox_input:hover .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+.pc-form__element--checkbox_input input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+}
+
+/* Colour picker */
+.pc-form__element--color_input input[type="color"] {
+	width: 44px;
+	height: 32px;
+	padding: 2px;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	cursor: pointer;
+	background: none;
+}
+
+.pc-form__element--color_input input[type="color"]:hover {
+	border-color: var(--pc-sp-accent);
+}
+
+/* Label-after hover */
+.pc-form__element--label-after:hover .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+/* Submit — WP button-primary */
+.pc-form__element--submit_input {
+	padding: 8px 0;
+}
+
+.pc-form__element--submit_input input[type="submit"] {
+	display: inline-block;
+	padding: 4px 16px;
+	font-size: 13px;
+	font-weight: 400;
+	font-family: inherit;
+	line-height: 2;
+	color: #fff;
+	background: var(--pc-sp-accent);
+	border: 1px solid var(--pc-sp-accent);
+	border-radius: var(--pc-sp-radius);
+	cursor: pointer;
+	transition: background 0.1s;
+}
+
+.pc-form__element--submit_input input[type="submit"]:hover {
+	background: var(--pc-sp-accent-hover);
+	border-color: var(--pc-sp-accent-hover);
+}
+
+.pc-form__element--submit_input input[type="submit"]:active {
+	transform: none;
+}
+
+/* WP Editor / Raw HTML */
+.pc-form__element--raw_html {
+	padding: 8px 0;
+}
+
+.pc-form__element--raw_html > label {
+	display: block;
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 6px;
+	color: var(--pc-sp-text);
+}
+
+/* Media Library */
+.pc-settings-media-upload__preview img {
+	max-width: 120px;
+	max-height: 120px;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	object-fit: cover;
+}
+
+.pc-settings-media-upload__preview figcaption {
+	font-size: 12px;
+	color: var(--pc-sp-text-muted);
+	margin-top: 4px;
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pc-settings-media-upload__controls .button {
+	font-size: 13px;
+	min-width: 60px;
+}
+
+/* Repeater */
+.pc-repeater__group {
+	border: 1px solid var(--pc-sp-border-light);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-bg);
+}
+
+.pc-repeater__group-header {
+	padding: 6px 10px;
+	background: var(--pc-sp-bg-alt);
+	border-bottom: 1px solid var(--pc-sp-border-light);
+}
+
+.pc-repeater__drag-handle {
+	font-size: 14px;
+	color: var(--pc-sp-text-muted);
+	padding: 2px 4px;
+}
+
+.pc-repeater__remove {
+	font-size: 16px;
+	color: var(--pc-sp-text-muted);
+	padding: 2px 4px;
+	border-radius: var(--pc-sp-radius);
+	transition: color 0.1s;
+}
+
+.pc-repeater__remove:hover {
+	color: var(--pc-sp-error);
+}
+
+.pc-repeater__group-fields {
+	padding: 12px;
+}
+
+.pc-repeater__field-label {
+	font-weight: 600;
+	font-size: 12px;
+	color: var(--pc-sp-text-secondary);
+}
+
+.pc-repeater__input {
+	padding: 4px 8px;
+	font-size: 13px;
+	font-family: inherit;
+	line-height: 2;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-bg);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	transition: border-color 0.1s;
+}
+
+.pc-repeater__input:focus {
+	border-color: var(--pc-sp-accent);
+	box-shadow: 0 0 0 1px var(--pc-sp-accent);
+}
+
+.pc-repeater__add {
+	padding: 4px 14px;
+	font-size: 13px;
+	font-family: inherit;
+	color: var(--pc-sp-accent);
+	background: transparent;
+	border: 1px solid var(--pc-sp-accent);
+	border-radius: var(--pc-sp-radius);
+	cursor: pointer;
+	transition: color 0.1s, background 0.1s;
+}
+
+.pc-repeater__add:hover {
+	color: #fff;
+	background: var(--pc-sp-accent);
+}
+
+/* Section — WP postbox style */
+.pc-form__section {
+	background: var(--pc-sp-bg);
+	border: 1px solid var(--pc-sp-border-light);
+	border-radius: var(--pc-sp-radius);
+	box-shadow: none;
+}
+
+.pc-form__section-header {
+	padding: 8px 12px;
+	background: var(--pc-sp-bg-alt);
+	border-bottom: 1px solid var(--pc-sp-border-light);
+}
+
+.pc-form__section-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--pc-sp-text);
+}
+
+.pc-form__section-description {
+	padding: 0 12px 8px;
+	font-size: 13px;
+	color: var(--pc-sp-text-muted);
+	font-style: italic;
+	line-height: 1.5;
+}
+
+.pc-form__section-toggle {
+	font-size: 10px;
+	color: var(--pc-sp-text-muted);
+}
+
+.pc-form__section-body {
+	padding: 16px;
+}
+
+/* Divider */
+.pc-form__divider {
+	border-top: 1px solid var(--pc-sp-border-light);
+	margin: 4px 12px;
+}
+
+/* Notices */
+.pc-form__notice {
+	padding: 8px 12px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.pc-form__section-body > .pc-form__element:first-child .pc-form__notice {
+	margin: -16px -16px 0 -16px;
+	border-radius: 0;
+	border-left: none;
+	border-right: none;
+	border-top: none;
+}
+
+.pc-form__notice--info {
+	background: var(--pc-sp-accent-light);
+	color: var(--pc-sp-accent);
+	border-left: 4px solid var(--pc-sp-accent);
+}
+
+.pc-form__notice--warning {
+	background: #fcf9e8;
+	color: #826200;
+	border-left: 4px solid #dba617;
+}
+
+.pc-form__notice--error {
+	background: var(--pc-sp-error-light);
+	color: var(--pc-sp-error);
+	border-left: 4px solid var(--pc-sp-error);
+}
+
+.pc-form__notice--success {
+	background: var(--pc-sp-success-light);
+	color: var(--pc-sp-success);
+	border-left: 4px solid var(--pc-sp-success);
+}
+
+/* Validation error state */
+.pc-form__element--error input,
+.pc-form__element--error select,
+.pc-form__element--error textarea {
+	border-color: var(--pc-sp-error);
+}
+
+.pc-form__element--error input:focus,
+.pc-form__element--error select:focus,
+.pc-form__element--error textarea:focus {
+	box-shadow: 0 0 0 1px var(--pc-sp-error);
+}
+
+.pc-form__element--error .pc-form__label {
+	color: var(--pc-sp-error);
+}
+
+/* Notifications */
+.pc-form__notification {
+	font-size: 13px;
+	margin-top: 4px;
+}
+
+.pc-form__notification--error {
+	color: var(--pc-sp-error);
+}
+
+.pc-form__notification--success {
+	color: var(--pc-sp-success);
+}
+
+/* Field description */
+.pc-form__description {
+	margin: 4px 0 0 0;
+	font-size: 13px;
+	color: var(--pc-sp-text-muted);
+	font-style: italic;
+	line-height: 1.4;
+}
+
+/* Field-level error */
+.pc-form__field-error {
+	margin: 4px 0 0 0;
+	padding: 4px 8px;
+	font-size: 13px;
+	color: var(--pc-sp-error);
+	background: var(--pc-sp-error-light);
+	border-left: 4px solid var(--pc-sp-error);
+}
+
+.pc-form__element--has-error .pc-form__element__field {
+	border-color: var(--pc-sp-error);
+}
+
+/* Picker */
+.pc-picker__tag {
+	padding: 2px 8px;
+	font-size: 13px;
+	background: var(--pc-sp-accent-light);
+	color: var(--pc-sp-accent);
+	border: 1px solid var(--pc-sp-accent);
+	border-radius: var(--pc-sp-radius);
+	line-height: 1.6;
+}
+
+.pc-picker__tag-remove {
+	font-size: 14px;
+	line-height: 1;
+	color: var(--pc-sp-accent);
+	padding: 0 2px;
+	margin-left: 2px;
+}
+
+.pc-picker__tag-remove:hover {
+	color: var(--pc-sp-error);
+}
+
+.pc-picker__search {
+	padding: 4px 8px;
+	font-size: 13px;
+	line-height: 2;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-bg);
+	color: var(--pc-sp-text);
+	outline: none;
+	transition: border-color 0.1s;
+}
+
+.pc-picker__search:focus {
+	border-color: var(--pc-sp-accent);
+	box-shadow: 0 0 0 1px var(--pc-sp-accent);
+}
+
+.pc-picker__dropdown {
+	background: var(--pc-sp-bg);
+	border: 1px solid var(--pc-sp-border);
+	border-top: none;
+	border-radius: 0 0 var(--pc-sp-radius) var(--pc-sp-radius);
+	box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+}
+
+.pc-picker__option {
+	padding: 6px 8px;
+	font-size: 13px;
+	color: var(--pc-sp-text);
+}
+
+.pc-picker__option:hover,
+.pc-picker__option--highlighted {
+	background: var(--pc-sp-accent);
+	color: #fff;
+}
+
+.pc-picker__no-results,
+.pc-picker__loading {
+	padding: 6px 8px;
+	color: var(--pc-sp-text-muted);
+	font-size: 13px;
+	font-style: italic;
+}

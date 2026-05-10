@@ -1,0 +1,1134 @@
+/**
+ * Perique Settings Page — Material Theme.
+ *
+ * Material Design 3 outlined text field. Label rests inside the input
+ * as placeholder-style text, floats to the border on focus or when
+ * the field has a value. The floated label gets a surface-coloured
+ * background + padding to create the "notch" gap in the border.
+ */
+
+:root {
+	--pc-sp-font: "Roboto", "Noto Sans", -apple-system, sans-serif;
+	--pc-sp-bg: #fffbfe;
+	--pc-sp-bg-alt: #f7f2fa;
+	--pc-sp-surface: #ffffff;
+	--pc-sp-border: #79747e;
+	--pc-sp-border-light: #e7e0ec;
+	--pc-sp-text: #1c1b1f;
+	--pc-sp-text-secondary: #49454f;
+	--pc-sp-text-muted: #79747e;
+	--pc-sp-accent: #6750a4;
+	--pc-sp-accent-hover: #4f378b;
+	--pc-sp-accent-light: #eaddff;
+	--pc-sp-on-accent: #ffffff;
+	--pc-sp-error: #b3261e;
+	--pc-sp-error-light: #f9dedc;
+	--pc-sp-success: #386a20;
+	--pc-sp-success-light: #d4f5c0;
+	--pc-sp-radius: 4px;
+	--pc-sp-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+}
+
+/* ─── Form ─── */
+.pc-form {
+	font-family: var(--pc-sp-font);
+	color: var(--pc-sp-text);
+	padding: 24px;
+}
+
+/* Consistent bottom margin on ALL field wrappers */
+.pc-form__element {
+	margin-bottom: 15px;
+}
+
+.pc-form__element:last-child {
+	margin-bottom: 0;
+}
+
+/* ─── Outlined text fields ───────────────────────────────────
+ *
+ * Wrapper becomes the outlined container (border lives here).
+ * Input has no border of its own.
+ * Label is absolute-positioned:
+ *   REST  → vertically centred, full size, acts as placeholder
+ *   FLOAT → sits on the top border, small, with a surface bg
+ *           that masks the border line (the "notch").
+ *
+ * Float triggers:
+ *   :focus-within           — user clicked / tabbed in
+ *   :has(input[value]...)   — server rendered a non-empty value
+ *   :has(input:not(:placeholder-shown)) — user typed something
+ * ────────────────────────────────────────────────────────────── */
+
+/* The outlined border lives on a ::before pseudo so it only wraps the
+ * label + input, not the description text below them. */
+.pc-form__element--text_input,
+.pc-form__element--number_input,
+.pc-form__element--email_input,
+.pc-form__element--url_input,
+.pc-form__element--tel_input,
+.pc-form__element--password_input {
+	position: relative;
+	border: none;
+	padding: 0;
+	background: transparent;
+}
+
+.pc-form__element--text_input::before,
+.pc-form__element--number_input::before,
+.pc-form__element--email_input::before,
+.pc-form__element--url_input::before,
+.pc-form__element--tel_input::before,
+.pc-form__element--password_input::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	/* Height = input area only. Input has ~56px (24+24+8 padding + line).
+	 * We use the input's bottom edge via bottom:auto + a fixed height
+	 * that covers label + input but not the description. */
+	height: 56px;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	pointer-events: none;
+	transition: border-color 0.2s;
+	z-index: 0;
+}
+
+/* Focus — 2px accent border on the pseudo */
+.pc-form__element--text_input:focus-within::before,
+.pc-form__element--number_input:focus-within::before,
+.pc-form__element--email_input:focus-within::before,
+.pc-form__element--url_input:focus-within::before,
+.pc-form__element--tel_input:focus-within::before,
+.pc-form__element--password_input:focus-within::before {
+	border-color: var(--pc-sp-accent);
+	border-width: 2px;
+}
+
+/* Input — borderless, tall, sits above the pseudo-border */
+.pc-form__element--text_input input,
+.pc-form__element--number_input input,
+.pc-form__element--email_input input,
+.pc-form__element--url_input input,
+.pc-form__element--tel_input input,
+.pc-form__element--password_input input {
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+	width: 100%;
+	padding: 20px 16px 12px;
+	font-size: 16px;
+	line-height: 1.5;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	-webkit-appearance: none;
+	position: relative;
+	z-index: 1;
+}
+
+/* Hide real placeholder always — label acts as the placeholder */
+.pc-form__element--text_input input::placeholder,
+.pc-form__element--number_input input::placeholder,
+.pc-form__element--email_input input::placeholder,
+.pc-form__element--url_input input::placeholder,
+.pc-form__element--tel_input input::placeholder,
+.pc-form__element--password_input input::placeholder {
+	color: transparent !important;
+}
+
+/* Number — don't constrain width */
+.pc-form__element--number_input input[type="number"] {
+	max-width: none;
+}
+
+/* ─── Label: resting state (inside the field, like a placeholder) ─── */
+/* top: 28px = half of the 56px input area (not 50% of the full wrapper
+ * which includes the description text). */
+.pc-form__element--text_input > .pc-form__label,
+.pc-form__element--number_input > .pc-form__label,
+.pc-form__element--email_input > .pc-form__label,
+.pc-form__element--url_input > .pc-form__label,
+.pc-form__element--tel_input > .pc-form__label,
+.pc-form__element--password_input > .pc-form__label {
+	position: absolute;
+	left: 12px;
+	top: 28px;
+	transform: translateY(-50%);
+	font-size: 16px;
+	font-weight: 400;
+	color: var(--pc-sp-text-muted);
+	background: transparent;
+	padding: 0 4px;
+	margin: 0;
+	pointer-events: none;
+	transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+	z-index: 2;
+	line-height: 1;
+}
+
+/* ─── Label: floated state ─── */
+/* Float on focus or when the input has content (detected via
+ * :placeholder-shown — every input has at least placeholder=" "
+ * so this always works). No [value] attr selector — that doesn't
+ * update when the user clears the field. */
+.pc-form__element--text_input:focus-within > .pc-form__label,
+.pc-form__element--number_input:focus-within > .pc-form__label,
+.pc-form__element--email_input:focus-within > .pc-form__label,
+.pc-form__element--url_input:focus-within > .pc-form__label,
+.pc-form__element--tel_input:focus-within > .pc-form__label,
+.pc-form__element--password_input:focus-within > .pc-form__label,
+.pc-form__element--text_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--number_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--email_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--url_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--tel_input:has(input:not(:placeholder-shown)) > .pc-form__label,
+.pc-form__element--password_input:has(input:not(:placeholder-shown)) > .pc-form__label {
+	top: 0;
+	transform: translateY(-50%);
+	font-size: 12px;
+	letter-spacing: 0.4px;
+	color: var(--pc-sp-text-secondary);
+	/* Notch: surface background masks the border line behind the label */
+	background: var(--pc-sp-surface);
+	padding: 0 6px;
+}
+
+/* Focused floated label gets accent colour */
+.pc-form__element--text_input:focus-within > .pc-form__label,
+.pc-form__element--number_input:focus-within > .pc-form__label,
+.pc-form__element--email_input:focus-within > .pc-form__label,
+.pc-form__element--url_input:focus-within > .pc-form__label,
+.pc-form__element--tel_input:focus-within > .pc-form__label,
+.pc-form__element--password_input:focus-within > .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+/* ─── Select — outlined with floating label ─── */
+/* Same pseudo-border pattern as text inputs. Select always has a
+ * visible value so the label is always in the floated state. */
+.pc-form__element--select {
+	position: relative;
+	border: none;
+	padding: 0;
+	background: transparent;
+}
+
+
+.pc-form__element--select > .pc-form__label {
+	position: absolute;
+	left: 12px;
+	top: 0;
+	transform: translateY(-50%);
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.4px;
+	color: var(--pc-sp-text-secondary);
+	background: var(--pc-sp-surface);
+	padding: 0 6px;
+	margin: 0;
+	pointer-events: none;
+	z-index: 2;
+	line-height: 1;
+}
+
+.pc-form__element--select:focus-within > .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+.pc-form__element--select select {
+	position: relative;
+	z-index: 1;
+	width: 100% !important;
+	max-width: 100% !important;
+	box-sizing: border-box;
+	height: 56px;
+	padding: 0 40px 0 16px;
+	font-size: 16px;
+	line-height: 56px;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 5 5-5' fill='%2349454f'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 14px center;
+	transition: border-color 0.2s;
+}
+
+.pc-form__element--select select:focus {
+	border-color: var(--pc-sp-accent);
+	border-width: 2px;
+	padding: 0 39px 0 15px;
+}
+
+/* Multi-select — use a real border on the select itself instead of
+ * the ::before pseudo, since the listbox height is dynamic. */
+.pc-form__element--select:has(select[multiple])::before {
+	display: none;
+}
+
+.pc-form__element--select select[multiple] {
+	width: 100% !important;
+	max-width: 100% !important;
+	min-width: 100%;
+	height: auto;
+	min-height: 140px;
+	padding: 12px;
+	font-size: 16px;
+	line-height: 1.5;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	background-image: none;
+	-webkit-appearance: none;
+	appearance: none;
+	outline: none;
+	transition: border-color 0.2s;
+}
+
+.pc-form__element--select select[multiple]:focus {
+	border-color: var(--pc-sp-accent);
+	border-width: 2px;
+	padding: 11px;
+}
+
+.pc-form__element--select select[multiple] option {
+	padding: 8px 8px;
+	border-radius: var(--pc-sp-radius);
+	margin-bottom: 2px;
+}
+
+.pc-form__element--select select[multiple] option:checked {
+	background: var(--pc-sp-accent-light);
+	color: var(--pc-sp-accent);
+}
+
+/* Multi-select label — always floated, sits on the select's own border */
+.pc-form__element--select:has(select[multiple]) > .pc-form__label {
+	background: var(--pc-sp-surface);
+}
+
+/* ─── Textarea ─── */
+.pc-form__element textarea {
+	padding: 16px;
+	font-size: 16px;
+	line-height: 1.5;
+	font-family: inherit;
+	color: var(--pc-sp-text);
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	outline: none;
+	transition: border-color 0.2s;
+}
+
+.pc-form__element textarea:focus {
+	border-color: var(--pc-sp-accent);
+	border-width: 2px;
+	padding: 15px;
+}
+
+/* ─── Descriptions ───
+ * The border is now a ::before pseudo covering only the input area,
+ * so description text naturally sits below the visible border. */
+.pc-form__element .description,
+.pc-form__element p.description,
+.pc-form__description {
+	color: var(--pc-sp-text-muted);
+	font-size: 12px;
+	line-height: 1.5;
+	letter-spacing: 0.4px;
+	margin: 4px 16px 0;
+	position: relative;
+	z-index: 1;
+}
+
+/* ─── Labels for non-floating fields (select, textarea, groups etc) ─── */
+.pc-form__element--select > .pc-form__label,
+.pc-form__element--textarea > .pc-form__label,
+.pc-form__element--radio_group > .pc-form__label,
+.pc-form__element--checkbox_group > .pc-form__label,
+.pc-form__label--group {
+	font-weight: 500;
+	font-size: 12px;
+	color: var(--pc-sp-text-secondary);
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	margin-bottom: 8px;
+}
+
+/* ─── Checkbox + Radio groups ─── */
+.checkbox-group__option,
+.radio-group__option {
+	padding: 8px 0;
+	font-size: 14px;
+}
+
+.checkbox-group__option:hover,
+.radio-group__option:hover {
+	color: var(--pc-sp-accent);
+}
+
+.checkbox-group__option input,
+.radio-group__option input {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--pc-sp-accent);
+	cursor: pointer;
+}
+
+/* ─── Single checkbox ─── */
+.pc-form__element--checkbox_input {
+	flex-wrap: wrap;
+}
+
+.pc-form__element--checkbox_input .pc-form__label {
+	font-weight: 400;
+	font-size: 14px;
+}
+
+.pc-form__element--checkbox_input:hover .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+.pc-form__element--checkbox_input input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--pc-sp-accent);
+}
+
+/* ─── Colour picker — outlined container with large swatch ─── */
+.pc-form__element--color_input {
+	position: relative;
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	padding: 12px 16px;
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	transition: border-color 0.2s;
+	cursor: pointer;
+}
+
+.pc-form__element--color_input:focus-within {
+	border-color: var(--pc-sp-accent);
+	border-width: 2px;
+	padding: 11px 15px;
+}
+
+/* Floating label */
+.pc-form__element--color_input > .pc-form__label {
+	position: absolute;
+	left: 12px;
+	top: 0;
+	transform: translateY(-50%);
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.4px;
+	color: var(--pc-sp-text-secondary);
+	background: var(--pc-sp-surface);
+	padding: 0 6px;
+	margin: 0;
+	pointer-events: none;
+	z-index: 2;
+	line-height: 1;
+}
+
+.pc-form__element--color_input:focus-within > .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+/* The native colour input — large circle swatch */
+.pc-form__element--color_input input[type="color"] {
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	border: 2px solid var(--pc-sp-border-light);
+	border-radius: 50%;
+	cursor: pointer;
+	background: none;
+	-webkit-appearance: none;
+	appearance: none;
+	flex-shrink: 0;
+}
+
+.pc-form__element--color_input input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 2px;
+}
+
+.pc-form__element--color_input input[type="color"]::-webkit-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+.pc-form__element--color_input input[type="color"]::-moz-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+/* Hex value display — added by JS */
+.pc-form__element--color_input .pc-color-hex {
+	font-size: 16px;
+	font-family: "Roboto Mono", monospace;
+	color: var(--pc-sp-text);
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	order: 2;
+}
+
+/* Description after hex */
+.pc-form__element--color_input input[type="color"] {
+	order: 0;
+}
+
+.pc-form__element--color_input .pc-form__description,
+.pc-form__element--color_input .description {
+	order: 3;
+	font-size: 12px;
+	color: var(--pc-sp-text-muted);
+	margin: 0 0 0 auto;
+}
+
+/* ─── Label-after ─── */
+.pc-form__element--label-after:hover .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+/* ─── Submit — filled tonal button ─── */
+.pc-form__element--submit_input {
+	padding: 12px 0;
+}
+
+.pc-form__element--submit_input input[type="submit"] {
+	display: inline-block;
+	padding: 14px 48px;
+	font-size: 14px;
+	font-weight: 500;
+	font-family: inherit;
+	letter-spacing: 0.1px;
+	line-height: 1;
+	color: var(--pc-on-accent);
+	background: var(--pc-sp-accent);
+	border: none;
+	border-radius: 20px;
+	cursor: pointer;
+	transition: background 0.2s, box-shadow 0.2s;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.pc-form__element--submit_input input[type="submit"]:hover {
+	background: var(--pc-sp-accent-hover);
+	box-shadow: 0 1px 3px 1px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── WP Editor / Raw HTML ─── */
+.pc-form__element--raw_html {
+	padding: 16px 0;
+}
+
+.pc-form__element--raw_html > label {
+	display: block;
+	font-weight: 500;
+	font-size: 12px;
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	margin-bottom: 8px;
+	color: var(--pc-sp-text-secondary);
+}
+
+.pc-form__element--raw_html .wp-editor-wrap {
+	border-radius: var(--pc-sp-radius);
+	overflow: hidden;
+	border: 1px solid var(--pc-sp-border);
+}
+
+/* ─── Media Library — dropzone style ─── */
+.pc-settings-media-upload {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0;
+	margin: 0;
+}
+
+.pc-settings-media-upload__dropzone {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 160px;
+	border: 2px dashed var(--pc-sp-border);
+	border-radius: 12px;
+	background: var(--pc-sp-bg-alt);
+	cursor: pointer;
+	transition: border-color 0.2s, background 0.2s;
+	padding: 24px;
+}
+
+.pc-settings-media-upload__dropzone:hover {
+	border-color: var(--pc-sp-accent);
+	background: var(--pc-sp-accent-light);
+}
+
+/* Placeholder — icon + text, shown when no image selected */
+.pc-settings-media-upload__placeholder {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.pc-settings-media-upload__icon {
+	color: var(--pc-sp-text-muted);
+	opacity: 0.6;
+}
+
+.pc-settings-media-upload__dropzone:hover .pc-settings-media-upload__icon {
+	color: var(--pc-sp-accent);
+	opacity: 1;
+}
+
+.pc-settings-media-upload__text {
+	font-size: 14px;
+	color: var(--pc-sp-text-muted);
+	margin: 0;
+	letter-spacing: 0.4px;
+}
+
+.pc-settings-media-upload__dropzone:hover .pc-settings-media-upload__text {
+	color: var(--pc-sp-accent);
+}
+
+/* Preview — shown when image is selected, hides placeholder */
+.pc-settings-media-upload__preview {
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+}
+
+.pc-settings-media-upload__preview img {
+	max-width: 200px;
+	max-height: 160px;
+	border-radius: 8px;
+	object-fit: cover;
+}
+
+.pc-settings-media-upload__preview img[src=""] {
+	display: none !important;
+}
+
+.pc-settings-media-upload__preview figcaption {
+	font-size: 12px;
+	color: var(--pc-sp-text-muted);
+	letter-spacing: 0.4px;
+	text-align: center;
+}
+
+/* When image is selected: show preview, hide placeholder */
+.pc-settings-media-upload:has(input[data-media-library-file-name][value]:not([value=""])) .pc-settings-media-upload__preview {
+	display: flex;
+}
+
+.pc-settings-media-upload:has(input[data-media-library-file-name][value]:not([value=""])) .pc-settings-media-upload__placeholder {
+	display: none;
+}
+
+/* Remove button — top-right overlay X, only visible when image selected */
+.pc-settings-media-upload {
+	position: relative;
+}
+
+.pc-settings-media-upload > .pc-settings-media-clear {
+	display: none;
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	z-index: 3;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 26px;
+	text-align: center;
+	color: var(--pc-sp-on-accent);
+	background: var(--pc-sp-error);
+	border: none;
+	border-radius: 50%;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.pc-settings-media-upload > .pc-settings-media-clear:hover {
+	background: #8c1d18;
+}
+
+.pc-settings-media-upload:has(input[data-media-library-file-name][value]:not([value=""])) > .pc-settings-media-clear {
+	display: inline-block;
+}
+
+/* ─── Repeater ─── */
+.pc-repeater__groups {
+	gap: 16px !important;
+}
+
+.pc-repeater__group {
+	border: 1px solid var(--pc-sp-border-light);
+	border-radius: 12px;
+	background: var(--pc-sp-surface);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.pc-repeater__group-header {
+	padding: 10px 16px;
+	background: var(--pc-sp-bg-alt);
+	border-bottom: 1px solid var(--pc-sp-border-light);
+	border-radius: 12px 12px 0 0;
+}
+
+.pc-repeater__drag-handle {
+	font-size: 18px;
+	color: var(--pc-sp-text-muted);
+	padding: 2px 4px;
+}
+
+.pc-repeater__remove {
+	font-size: 20px;
+	color: var(--pc-sp-text-muted);
+	padding: 4px 8px;
+	border-radius: 20px;
+	transition: color 0.15s, background 0.15s;
+}
+
+.pc-repeater__remove:hover {
+	color: var(--pc-sp-error);
+	background: var(--pc-sp-error-light);
+}
+
+.pc-repeater__group-fields {
+	padding: 20px 16px 16px;
+	gap: 15px !important;
+}
+
+/* Repeater fields — now use FC classes so the outlined floating
+ * label styles from text_input/number_input etc. apply automatically. */
+.pc-repeater__field-input {
+	display: flex;
+}
+
+/* Custom field labels — match the Field Group title style */
+.pc-form__element--raw_html:has(.pc-repeater) > .pc-form__label,
+.pc-form__element--repeater > .pc-form__label,
+.pc-form__element--media_library > .pc-form__label,
+.pc-form__element--wp_editor > .pc-form__label {
+	font-weight: 500;
+	font-size: 12px;
+	color: var(--pc-sp-text-secondary);
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	margin-bottom: 12px;
+}
+
+.pc-repeater__actions {
+	margin-top: 16px;
+}
+
+.pc-repeater__add.button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 12px 28px;
+	font-size: 14px;
+	font-weight: 500;
+	font-family: inherit;
+	letter-spacing: 0.1px;
+	color: var(--pc-sp-accent);
+	background: transparent;
+	border: 1px solid var(--pc-sp-accent);
+	border-radius: 20px;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+	line-height: 1;
+	height: auto;
+	box-shadow: none;
+}
+
+.pc-repeater__add.button:hover {
+	background: var(--pc-sp-accent);
+	color: var(--pc-sp-on-accent);
+}
+
+/* ─── Section — elevated surface ─── */
+.pc-form__section {
+	background: var(--pc-sp-surface);
+	border: none;
+	border-radius: 16px;
+	box-shadow: var(--pc-sp-shadow);
+}
+
+.pc-form__section-header {
+	padding: 20px 24px;
+	background: var(--pc-sp-bg-alt);
+	border-bottom: 1px solid var(--pc-sp-border-light);
+	border-radius: 16px 16px 0 0;
+}
+
+.pc-form__section-title {
+	font-size: 22px;
+	font-weight: 400;
+	color: var(--pc-sp-text);
+}
+
+.pc-form__section-description {
+	padding: 0 24px 16px;
+	font-size: 14px;
+	color: var(--pc-sp-text-muted);
+	line-height: 1.5;
+}
+
+.pc-form__section-toggle {
+	font-size: 12px;
+	color: var(--pc-sp-text-muted);
+}
+
+.pc-form__section-body {
+	padding: 32px 28px;
+	gap: 25px !important;
+}
+
+/* ─── Layout overrides — more breathing room ─── */
+.pc-form__row {
+	gap: 25px !important;
+}
+
+.pc-form__grid {
+	gap: 25px !important;
+}
+
+.pc-form__stack {
+	gap: 25px !important;
+}
+
+/* Inside rows/grids/stacks the gap handles spacing, so remove
+ * the per-field margin-bottom to avoid double spacing. */
+.pc-form__row > [class*="pc-form__element"],
+.pc-form__grid > [class*="pc-form__element"],
+.pc-form__stack > [class*="pc-form__element"] {
+	margin-bottom: 0 !important;
+}
+
+/* ─── Divider ─── */
+.pc-form__divider {
+	border-top: 1px solid var(--pc-sp-border-light);
+	margin: -18px 0 -10px 0;
+}
+
+/* ─── Notices — tonal containers ─── */
+.pc-form__notice {
+	padding: 16px 24px;
+	font-size: 14px;
+	line-height: 1.5;
+	border-radius: 12px;
+}
+
+.pc-form__section-body > .pc-form__element:first-child .pc-form__notice {
+	margin: -32px -28px 0 -28px;
+	border-radius: 0;
+	border: none;
+}
+
+.pc-form__notice--info {
+	background: var(--pc-sp-accent-light);
+	color: var(--pc-sp-accent-hover);
+}
+
+.pc-form__notice--warning {
+	background: #fef3cd;
+	color: #7a5b00;
+}
+
+.pc-form__notice--error {
+	background: var(--pc-sp-error-light);
+	color: var(--pc-sp-error);
+}
+
+.pc-form__notice--success {
+	background: var(--pc-sp-success-light);
+	color: var(--pc-sp-success);
+}
+
+/* ─── Validation error state (Material 3) ───
+ *
+ * Border → error red
+ * Label  → error red (both resting and floated)
+ * Supporting text / description → error red
+ * Focus border stays error red (not accent)
+ * ──────────────────────────────────────────── */
+
+/* ─── Validation error state (Material 3) ───
+ *
+ * Thick 2px red border, red label, red supporting text,
+ * trailing error icon (!) inside the input via ::after.
+ * ──────────────────────────────────────────── */
+
+/* Outlined fields: thick red border on ::before pseudo */
+.pc-form__element--text_input:has(.notification-error)::before,
+.pc-form__element--number_input:has(.notification-error)::before,
+.pc-form__element--email_input:has(.notification-error)::before,
+.pc-form__element--url_input:has(.notification-error)::before,
+.pc-form__element--tel_input:has(.notification-error)::before,
+.pc-form__element--password_input:has(.notification-error)::before {
+	border: 2px solid var(--pc-sp-error) !important;
+}
+
+/* Keep red on focus */
+.pc-form__element--text_input:has(.notification-error):focus-within::before,
+.pc-form__element--number_input:has(.notification-error):focus-within::before,
+.pc-form__element--email_input:has(.notification-error):focus-within::before,
+.pc-form__element--url_input:has(.notification-error):focus-within::before,
+.pc-form__element--tel_input:has(.notification-error):focus-within::before,
+.pc-form__element--password_input:has(.notification-error):focus-within::before {
+	border-color: var(--pc-sp-error) !important;
+}
+
+/* Select/textarea error — thick red border on the element itself */
+.pc-form__element:has(.notification-error) select,
+.pc-form__element:has(.notification-error) textarea {
+	border: 2px solid var(--pc-sp-error) !important;
+}
+
+/* Label → red for all error fields */
+.pc-form__element:has(.notification-error) > .pc-form__label {
+	color: var(--pc-sp-error) !important;
+}
+
+.pc-form__element:has(.notification-error):focus-within > .pc-form__label {
+	color: var(--pc-sp-error) !important;
+}
+
+/* Error icon (!) — trailing inside the input area, only on outlined fields */
+.pc-form__element--text_input:has(.notification-error)::after,
+.pc-form__element--number_input:has(.notification-error)::after,
+.pc-form__element--email_input:has(.notification-error)::after,
+.pc-form__element--url_input:has(.notification-error)::after,
+.pc-form__element--tel_input:has(.notification-error)::after,
+.pc-form__element--password_input:has(.notification-error)::after {
+	content: '!';
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	width: 24px;
+	height: 24px;
+	line-height: 24px;
+	text-align: center;
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--pc-sp-on-accent);
+	background: var(--pc-sp-error);
+	border-radius: 50%;
+	z-index: 3;
+	pointer-events: none;
+}
+
+/* Notification text (the error message from FC) */
+.pc-form__notification {
+	font-size: 12px;
+	margin-top: 4px;
+	padding-left: 16px;
+	letter-spacing: 0.4px;
+}
+
+/* Checkbox/radio: force description + error below the label+input row.
+ * Description before error, always. */
+.pc-form__element--checkbox_input > .pc-form__description,
+.pc-form__element--checkbox_input > p.description,
+.pc-form__element--label-after > .pc-form__description,
+.pc-form__element--label-after > p.description {
+	flex-basis: 100%;
+	order: 10 !important;
+	padding-left: 0;
+	margin-top: 4px;
+}
+
+.pc-form__element--checkbox_input > .pc-form__notification,
+.pc-form__element--label-after > .pc-form__notification {
+	flex-basis: 100%;
+	order: 20 !important;
+	padding-left: 0;
+	margin-top: 4px;
+}
+
+.pc-form__notification--error {
+	color: var(--pc-sp-error);
+}
+
+.pc-form__notification--success {
+	color: var(--pc-sp-success);
+}
+
+/* Field-level error (from the grouped notice system) */
+.pc-form__field-error {
+	margin: 4px 16px 0;
+	padding: 0;
+	font-size: 12px;
+	color: var(--pc-sp-error);
+	background: none;
+	border: none;
+	letter-spacing: 0.4px;
+}
+
+.pc-form__element--has-error .pc-form__element__field {
+	border-color: var(--pc-sp-error);
+}
+
+/* ─── Picker — outlined container with floating label ─── */
+
+/* The wrapper (.pc-form__element--raw_html that contains the picker)
+ * gets the outlined border via the .pc-picker element itself. We
+ * also float the label from the parent wrapper. */
+.pc-form__element:has(.pc-picker) {
+	position: relative;
+}
+
+/* Float the label onto the border */
+.pc-form__element:has(.pc-picker) > .pc-form__label {
+	position: absolute;
+	left: 12px;
+	top: 0;
+	transform: translateY(-50%);
+	font-size: 12px;
+	font-weight: 400;
+	letter-spacing: 0.4px;
+	color: var(--pc-sp-text-secondary);
+	background: var(--pc-sp-surface);
+	padding: 0 6px;
+	margin: 0;
+	pointer-events: none;
+	z-index: 2;
+	line-height: 1;
+}
+
+.pc-form__element:has(.pc-picker):focus-within > .pc-form__label {
+	color: var(--pc-sp-accent);
+}
+
+/* The picker container IS the outlined box */
+.pc-picker {
+	border: 1px solid var(--pc-sp-border);
+	border-radius: var(--pc-sp-radius);
+	background: var(--pc-sp-surface);
+	padding: 12px 16px;
+	min-height: 56px;
+	box-sizing: border-box;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	transition: border-color 0.2s;
+	cursor: text;
+}
+
+.pc-picker:focus-within {
+	border-color: var(--pc-sp-accent);
+	border-width: 2px;
+	padding: 11px 15px;
+}
+
+/* Tags flow inline */
+.pc-picker__selected {
+	display: contents;
+	margin-bottom: 0;
+}
+
+.pc-picker__selected:empty {
+	display: none;
+}
+
+/* Search input fills remaining space */
+.pc-picker__search-wrap {
+	flex: 1;
+	min-width: 60px;
+}
+
+.pc-picker__tag {
+	padding: 6px 12px;
+	font-size: 14px;
+	background: var(--pc-sp-accent-light);
+	color: var(--pc-sp-accent);
+	border: none;
+	border-radius: 8px;
+	line-height: 1.4;
+}
+
+.pc-picker__tag-remove {
+	font-size: 16px;
+	line-height: 1;
+	color: var(--pc-sp-accent);
+	padding: 0 2px;
+	margin-left: 4px;
+}
+
+.pc-picker__tag-remove:hover {
+	color: var(--pc-sp-error);
+}
+
+.pc-picker__search {
+	padding: 4px 0;
+	font-size: 16px;
+	border: none !important;
+	border-radius: 0;
+	background: transparent !important;
+	color: var(--pc-sp-text);
+	outline: none !important;
+	box-shadow: none !important;
+	width: 100%;
+}
+
+.pc-picker__search:focus {
+	border: none !important;
+	box-shadow: none !important;
+}
+
+/* When there are selected tags, hide the placeholder */
+.pc-picker__selected:not(:empty) ~ .pc-picker__search-wrap .pc-picker__search::placeholder {
+	color: transparent;
+}
+
+.pc-picker__dropdown {
+	background: var(--pc-sp-surface);
+	border: 1px solid var(--pc-sp-border-light);
+	border-top: none;
+	border-radius: 0 0 var(--pc-sp-radius) var(--pc-sp-radius);
+	box-shadow: var(--pc-sp-shadow);
+}
+
+.pc-picker__option {
+	padding: 14px 16px;
+	font-size: 14px;
+	color: var(--pc-sp-text);
+	transition: background 0.1s;
+}
+
+.pc-picker__option:hover,
+.pc-picker__option--highlighted {
+	background: var(--pc-sp-accent-light);
+	color: var(--pc-sp-accent);
+}
+
+.pc-picker__no-results,
+.pc-picker__loading {
+	padding: 14px 16px;
+	color: var(--pc-sp-text-muted);
+	font-size: 14px;
+	font-style: italic;
+}

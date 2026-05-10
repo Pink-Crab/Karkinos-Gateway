@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -h \"^abstract class\\\\|^class\\\\|^interface\" /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Handler/*.php)",
+      "Bash(grep -h \"^abstract class\\\\|^class\\\\|^interface\" /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Setting/Field/Attribute/*.php)",
+      "Bash(grep -h \"^abstract class\\\\|^class\\\\|^interface\" /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Mapper/*.php /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Page/*.php /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Rest/*.php /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Setting/*.php /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Registration/*.php /media/glynn/2024/devilbox_public/php/htdocs/Perique-Settings-Page/src/Util/*.php)",
+      "Bash(read f:*)",
+      "Read(//<file name=\"\\\\/shared\\\\/httpd\\\\/php\\\\/htdocs\\\\/Perique-Settings-Page\\\\/src\\\\/Setting\\\\/**)",
+      "Read(//<file name=\"\\\\/shared\\\\/httpd\\\\/php\\\\/htdocs\\\\/Perique-Settings-Page\\\\/src\\\\/Setting\\\\/Field\\\\/**)",
+      "Read(//<file name=\"\\\\/shared\\\\/httpd\\\\/php\\\\/htdocs\\\\/Perique-Settings-Page\\\\/src\\\\/Mapper\\\\/**)",
+      "Read(//<file name=\"\\\\/shared\\\\/httpd\\\\/php\\\\/htdocs\\\\/Perique-Settings-Page\\\\/src\\\\/Page\\\\/**)"
+    ]
+  }
+}

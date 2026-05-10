@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Integer Argument type.
+ *
+ * @package PinkCrab\WP_Rest_Schema
+ * @author Glynn Quelch glynn@pinkcrab.co.uk
+ * @since 0.1.0
+ */
+
+namespace PinkCrab\WP_Rest_Schema\Argument;
+
+use PinkCrab\WP_Rest_Schema\Argument\Argument;
+use PinkCrab\WP_Rest_Schema\Argument\Attribute\Number_Attributes;
+
+class Integer_Type extends Argument {
+
+	/**
+	 * @method static exclusive_minimum( bool $min )
+	 * @method static exclusive_maximum( bool $min )
+	 * @method static exclusive_maximum( float $multiple_of )
+	 * @method bool|null get_exclusive_maximum()
+	 * @method bool|null get_exclusive_minimum()
+	 * @method float|null get_multiple_of()
+	 */
+	use Number_Attributes;
+
+	public function __construct( string $key ) {
+		parent::__construct( $key );
+		$this->type( Argument::TYPE_INTEGER );
+	}
+
+	/**
+	 * Sets the min length of the value
+	 *
+	 * @param int $min
+	 * @return static
+	 */
+	public function minimum( int $min ): self {
+		$this->attributes['minimum'] = $min;
+		return $this;
+	}
+
+	/**
+	 * Gets the set min length, returns null if not set.
+	 *
+	 * @return int|null
+	 */
+	public function get_minimum(): ?int {
+		$value = \array_key_exists( 'minimum', $this->attributes )
+			? $this->attributes['minimum']
+			: null;
+		return is_int( $value ) ? $value : null;
+	}
+
+	/**
+	 * Sets the max length of the value
+	 *
+	 * @param int $max
+	 * @return static
+	 */
+	public function maximum( int $max ): self {
+		$this->attributes['maximum'] = $max;
+		return $this;
+	}
+
+	/**
+	 * Gets the set max length, returns null if not set.
+	 *
+	 * @return int|null
+	 */
+	public function get_maximum(): ?int {
+		$value = \array_key_exists( 'maximum', $this->attributes )
+			? $this->attributes['maximum']
+			: null;
+		return is_int( $value ) ? $value : null;
+	}
+}
