@@ -27,7 +27,7 @@ class Settings_Routes extends Route_Controller {
 					String_Type::field( 'ip' )
 						->required()
 						->format( Argument::FORMAT_IP )
-						->validation( static fn( $value ): bool => is_string( $value ) && false !== filter_var( $value, FILTER_VALIDATE_IP ) )
+						->validation( static fn( $value ): bool => false !== filter_var( $value, FILTER_VALIDATE_IP ) )
 				),
 		);
 	}
