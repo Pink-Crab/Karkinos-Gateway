@@ -1,0 +1,26 @@
+/*
+Theme Name: Karkinos Gateway
+Description: Minimal front-end theme for an API-only WordPress install. Displays a single centred image on a black background.
+Version: 1.0.0
+Author: Karkinos
+Text Domain: karkinos-gateway
+*/
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	background: #000;
+	overflow: hidden;
+}
+
+.gateway-image {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center center;
+}

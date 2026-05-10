@@ -1,0 +1,23 @@
+# Editor / IDE
+.vscode
+.idea
+
+# Claude
+.claude
+
+# wp-content/assets source images (theme has its own copies)
+assets
+
+# Upstream / shared mu-plugins not owned by this repo
+mu-plugins/debug-plugin
+mu-plugins/safety-net
+
+# karkinos-gateway build artefacts
+mu-plugins/karkinos-gateway/vendor/
+mu-plugins/karkinos-gateway/wordpress/
+mu-plugins/karkinos-gateway/coverage-report/
+mu-plugins/karkinos-gateway/clover.xml
+mu-plugins/karkinos-gateway/coverage.xml
+mu-plugins/karkinos-gateway/.phpunit.result.cache
+mu-plugins/karkinos-gateway/.phpstan-cache/
+mu-plugins/karkinos-gateway/tests/.env
