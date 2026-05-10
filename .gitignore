@@ -21,3 +21,4 @@ mu-plugins/karkinos-gateway/coverage.xml
 mu-plugins/karkinos-gateway/.phpunit.result.cache
 mu-plugins/karkinos-gateway/.phpstan-cache/
 mu-plugins/karkinos-gateway/tests/.env
+mu-plugins/karkinos-gateway/tests/.env
