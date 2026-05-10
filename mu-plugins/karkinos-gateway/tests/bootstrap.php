@@ -15,6 +15,12 @@ try {
 
 define( 'TEST_WP_ROOT', dirname( __DIR__ ) . '/wordpress' );
 
+// Webhook secret used across the test suite — Webhook_Routes reads this constant
+// to verify X-Hub-Signature-256. Tests compute signatures using the same value.
+if ( ! defined( 'KARKINOS_GH_WEBHOOK_SECRET' ) ) {
+	define( 'KARKINOS_GH_WEBHOOK_SECRET', 'phpunit-webhook-secret' );
+}
+
 tests_add_filter(
 	'muplugins_loaded',
 	static function (): void {
