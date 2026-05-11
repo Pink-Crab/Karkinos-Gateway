@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\Tests\Integration\Rest;
 
-use Karkinos\Gateway\Logging\Webhook_Logger;
+use PinkCrab\Perique\Application\App;
+use PinkCrab\Perique\Application\App_Config;
 use WP_REST_Request;
 use WP_UnitTestCase;
 
@@ -17,10 +18,17 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 
 	private const ROUTE = '/karkinos-gateway/v1/webhooks/github';
 
-	public function tear_down(): void {
-		delete_option( Webhook_Logger::OPTION_LOG_FILES );
+	private App_Config $config;
 
-		$dir = WP_CONTENT_DIR . '/karkinos-gateway-logs';
+	public function set_up(): void {
+		parent::set_up();
+		$this->config = App::make( App_Config::class );
+	}
+
+	public function tear_down(): void {
+		delete_option( $this->config->additional( 'webhook_log_files_option' ) );
+
+		$dir = (string) $this->config->path( 'webhook_logs' );
 		if ( is_dir( $dir ) ) {
 			foreach ( (array) glob( $dir . '/*' ) as $file ) {
 				if ( is_string( $file ) && is_file( $file ) ) {
@@ -129,13 +137,13 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 	 * @return string[]
 	 */
 	private function read_log_lines(): array {
-		$map = get_option( Webhook_Logger::OPTION_LOG_FILES, array() );
+		$map = get_option( $this->config->additional( 'webhook_log_files_option' ), array() );
 		if ( ! is_array( $map ) || empty( $map ) ) {
 			return array();
 		}
 
 		$filename = (string) reset( $map );
-		$path     = WP_CONTENT_DIR . '/karkinos-gateway-logs/' . $filename;
+		$path     = $this->config->path( 'webhook_logs' ) . '/' . $filename;
 
 		if ( ! is_file( $path ) ) {
 			return array();
