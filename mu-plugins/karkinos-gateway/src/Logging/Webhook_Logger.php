@@ -1,4 +1,15 @@
 <?php
+/**
+ * JSONL log writer for inbound webhook deliveries.
+ *
+ * One file per day in `wp-content/karkinos-gateway-logs/`. Filenames carry
+ * a random hex suffix so the URL can't be guessed from outside; the
+ * suffix is persisted (per date) in a wp_options row so all deliveries on
+ * the same day share the same file. The directory is created mode 0700
+ * on first write with an empty `index.php` blocker.
+ *
+ * @package Karkinos\Gateway\Logging
+ */
 
 declare(strict_types=1);
 
@@ -19,12 +30,23 @@ class Webhook_Logger {
 	 */
 	public const OPTION_LOG_FILES = 'karkinos_gateway_webhook_log_files';
 
-	private const LOG_DIR_NAME      = 'karkinos-gateway-logs';
+	/** Directory name (under wp-content/). */
+	private const LOG_DIR_NAME = 'karkinos-gateway-logs';
+
+	/** Raw bytes for the random filename suffix (12 hex chars). */
 	private const FILE_SUFFIX_BYTES = 6;
-	private const DIR_MODE          = 0700;
+
+	/** Permissions applied to the log directory on first creation. */
+	private const DIR_MODE = 0700;
 
 	/**
-	 * @param array<string, mixed> $record
+	 * Append a JSONL line describing a delivery.
+	 *
+	 * @param array<string, mixed> $record Free-form record. Common keys:
+	 *                                     ts, delivery, event, action, repo,
+	 *                                     signature_valid, payload.
+	 *
+	 * @return void
 	 */
 	public function log( array $record ): void {
 		$path = $this->log_file_for_today();
@@ -38,10 +60,21 @@ class Webhook_Logger {
 		file_put_contents( $path, $line . "\n", FILE_APPEND | LOCK_EX );
 	}
 
+	/**
+	 * Absolute path to the log directory.
+	 *
+	 * @return string Filesystem path under wp-content/.
+	 */
 	private function log_dir(): string {
 		return WP_CONTENT_DIR . '/' . self::LOG_DIR_NAME;
 	}
 
+	/**
+	 * Ensure the log directory exists with restrictive perms and a blank
+	 * index.php blocker. Idempotent — short-circuits after first creation.
+	 *
+	 * @return string The directory path (same as log_dir()).
+	 */
 	private function ensure_log_dir(): string {
 		$dir = $this->log_dir();
 
@@ -69,6 +102,13 @@ class Webhook_Logger {
 		return $dir;
 	}
 
+	/**
+	 * Resolve today's full log-file path. Picks (and persists) a random
+	 * suffix the first time it's called for a given date so subsequent
+	 * deliveries on the same day append to the same file.
+	 *
+	 * @return string Absolute path to today's JSONL log file.
+	 */
 	private function log_file_for_today(): string {
 		$date = gmdate( 'Y-m-d' );
 		$map  = get_option( self::OPTION_LOG_FILES, array() );

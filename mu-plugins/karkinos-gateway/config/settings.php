@@ -17,6 +17,9 @@ return array(
 	'namespaces' => array(
 		'rest' => 'karkinos-gateway/v1',
 	),
+	'db_tables'  => array(
+		'dispatch_jobs' => $GLOBALS['wpdb']->prefix . 'kg_dispatch_jobs',
+	),
 	'plugin'     => array(
 		'version' => '0.1.0',
 	),

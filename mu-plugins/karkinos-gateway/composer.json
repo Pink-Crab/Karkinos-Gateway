@@ -26,6 +26,8 @@
         "pinkcrab/perique-admin-menu": "2.1.*",
         "pinkcrab/perique-settings-page": "2.1.*",
         "pinkcrab/form-components": "2.1.*",
+        "pinkcrab/registerables": "2.1.*",
+        "pinkcrab/perique-migrations": "2.1.*",
         "pinkcrab/wp-rest-schema": "^1.0"
     },
     "require-dev": {
