@@ -31,6 +31,15 @@ class Gateway_Settings_Page extends Settings_Page {
 	/** @var string Sidebar menu label. */
 	protected string $menu_title = 'Karkinos Gateway';
 
+	/**
+	 * Run __() at instantiation so the labels translate without changing the
+	 * property defaults (which can't be function calls in PHP).
+	 */
+	public function __construct() {
+		$this->page_title = __( 'Karkinos Gateway', 'karkinos-gateway' );
+		$this->menu_title = __( 'Karkinos Gateway', 'karkinos-gateway' );
+	}
+
 	/** @var string WP capability gate. */
 	protected string $capability = 'manage_options';
 

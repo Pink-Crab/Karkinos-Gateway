@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4c6f15ff6c97accf8f7fc5fb8cb622d9",
+    "content-hash": "5b457474dcc04ea678a9299194fc167b",
     "packages": [
         {
             "name": "gin0115/dice",
@@ -427,6 +427,127 @@
             "time": "2026-04-16T23:25:19+00:00"
         },
         {
+            "name": "pinkcrab/perique-migration",
+            "version": "2.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Pink-Crab/Perique_Migrations.git",
+                "reference": "7eec637d7903b02d4597cd44d6ac4f9c647cb855"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Pink-Crab/Perique_Migrations/zipball/7eec637d7903b02d4597cd44d6ac4f9c647cb855",
+                "reference": "7eec637d7903b02d4597cd44d6ac4f9c647cb855",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0",
+                "pinkcrab/perique-framework-core": "2.1.*",
+                "pinkcrab/perique-plugin-lifecycle": "2.1.*",
+                "pinkcrab/wp-db-migrations": "^1.0"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "*",
+                "gin0115/wpunit-helpers": "~1",
+                "php-stubs/wordpress-stubs": "6.9.*",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^8.0 || ^9.0",
+                "roots/wordpress": "6.9.*",
+                "symfony/var-dumper": "*",
+                "szepeviktor/phpstan-wordpress": "^2.0",
+                "vlucas/phpdotenv": "^5.4",
+                "wp-coding-standards/wpcs": "*",
+                "wp-phpunit/wp-phpunit": "6.9.*",
+                "yoast/phpunit-polyfills": "^1.0.0 || ^2.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [],
+                "psr-4": {
+                    "PinkCrab\\Perique\\Migration\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Glynn Quelch",
+                    "email": "glynn@pinkcrab.co.uk",
+                    "homepage": "http://clappo.co.uk",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A module for the Perique Framework which makes use of the PinkCrab Table Builder and PinkCrab Migration libraries.",
+            "homepage": "https://pinkcrab.co.uk",
+            "support": {
+                "issues": "https://github.com/Pink-Crab/Perique_Migrations/issues",
+                "source": "https://github.com/Pink-Crab/Perique_Migrations/tree/2.1.1"
+            },
+            "time": "2026-04-18T22:19:42+00:00"
+        },
+        {
+            "name": "pinkcrab/perique-plugin-lifecycle",
+            "version": "2.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Pink-Crab/Perique_Plugin_Life_Cycle.git",
+                "reference": "d999b263a27924df88e840dd9bbe130558e6b7a1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Pink-Crab/Perique_Plugin_Life_Cycle/zipball/d999b263a27924df88e840dd9bbe130558e6b7a1",
+                "reference": "d999b263a27924df88e840dd9bbe130558e6b7a1",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0",
+                "pinkcrab/perique-framework-core": "2.1.*"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "*",
+                "gin0115/wpunit-helpers": "1.1.*",
+                "php-stubs/wordpress-stubs": "6.9.*",
+                "phpstan/phpstan": "*",
+                "phpunit/phpunit": "^8.5 || ^9.0.",
+                "roots/wordpress": "6.9.*",
+                "squizlabs/php_codesniffer": "3.*",
+                "symfony/var-dumper": "<=6.2.7",
+                "szepeviktor/phpstan-wordpress": "*",
+                "vlucas/phpdotenv": "<=5.5.0",
+                "wp-coding-standards/wpcs": "^3",
+                "wp-phpunit/wp-phpunit": "6.9.*",
+                "yoast/phpunit-polyfills": "^1.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [],
+                "psr-4": {
+                    "PinkCrab\\Plugin_Lifecycle\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Glynn Quelch",
+                    "email": "glynn@pinkcrab.co.uk",
+                    "homepage": "http://clappo.co.uk",
+                    "role": "Developer"
+                }
+            ],
+            "description": "A module for the PinkCrab Perique Framework which makes it easy to add subscribers which are triggered during various events within a plugins life cycle(Activation, Deactivation, Uninstall, Update etc).",
+            "homepage": "https://pinkcrab.co.uk",
+            "support": {
+                "issues": "https://github.com/Pink-Crab/Perique_Plugin_Life_Cycle/issues",
+                "source": "https://github.com/Pink-Crab/Perique_Plugin_Life_Cycle/tree/2.1.0"
+            },
+            "time": "2026-02-26T01:01:26+00:00"
+        },
+        {
             "name": "pinkcrab/perique-route",
             "version": "2.1.0",
             "source": {
@@ -555,6 +676,186 @@
                 "source": "https://github.com/Pink-Crab/Perique-Settings-Page/tree/2.1.1"
             },
             "time": "2026-05-01T23:13:34+00:00"
+        },
+        {
+            "name": "pinkcrab/registerables",
+            "version": "2.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Pink-Crab/Perique-Registerables.git",
+                "reference": "336eb91e2f69675977caf7bc755109b212dd5483"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Pink-Crab/Perique-Registerables/zipball/336eb91e2f69675977caf7bc755109b212dd5483",
+                "reference": "336eb91e2f69675977caf7bc755109b212dd5483",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4.0",
+                "pinkcrab/perique-framework-core": "2.1.*"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "*",
+                "doctrine/instantiator": "^1.5",
+                "gin0115/wpunit-helpers": "1.1.*",
+                "php-stubs/wordpress-stubs": "6.7.*",
+                "phpcompatibility/php-compatibility": "*",
+                "phpstan/phpstan": "1.*",
+                "phpunit/phpunit": " ^8.5 || ^9.0",
+                "pinkcrab/wp-rest-schema": "0.0.*",
+                "roave/security-advisories": "dev-latest",
+                "roots/wordpress": "6.7.*",
+                "symfony/var-dumper": "<=6.2.7",
+                "szepeviktor/phpstan-wordpress": "<=1.3.2",
+                "vlucas/phpdotenv": "<=5.5.0",
+                "wp-coding-standards/wpcs": "^3",
+                "wp-phpunit/wp-phpunit": "6.7.*",
+                "yoast/phpunit-polyfills": "^1.0.0 || ^2.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [],
+                "psr-4": {
+                    "PinkCrab\\Registerables\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Glynn Quelch",
+                    "email": "glynn.quelch@pinkcrab.co.uk",
+                    "homepage": "http://clappo.co.uk",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Abstract classes for creating post types, taxonomies, metaboxes and ajax calls.",
+            "homepage": "https://pinkcrab.co.uk",
+            "support": {
+                "issues": "https://github.com/Pink-Crab/Perique-Registerables/issues",
+                "source": "https://github.com/Pink-Crab/Perique-Registerables/tree/2.1.1"
+            },
+            "time": "2025-12-14T23:16:35+00:00"
+        },
+        {
+            "name": "pinkcrab/table_builder",
+            "version": "1.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Pink-Crab/WPDB-Table-Builder.git",
+                "reference": "9fbe2612a9423d71c8c13a07ddddb51f8b10ff53"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Pink-Crab/WPDB-Table-Builder/zipball/9fbe2612a9423d71c8c13a07ddddb51f8b10ff53",
+                "reference": "9fbe2612a9423d71c8c13a07ddddb51f8b10ff53",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "*",
+                "gin0115/wpunit-helpers": "~1",
+                "php-stubs/wordpress-stubs": "6.9.*",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^8.0 || ^9.0",
+                "roots/wordpress": "6.9.*",
+                "symfony/var-dumper": "*",
+                "szepeviktor/phpstan-wordpress": "^2.0",
+                "vlucas/phpdotenv": "^5.4",
+                "wp-coding-standards/wpcs": "*",
+                "wp-phpunit/wp-phpunit": "6.9.*",
+                "yoast/phpunit-polyfills": "^1.0.0 || ^2.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [],
+                "psr-4": {
+                    "PinkCrab\\Table_Builder\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Glynn Quelch",
+                    "email": "glynn.quelch@pinkcrab.co.uk",
+                    "homepage": "http://clappo.co.uk",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Used to define a tables schema and to create the table in most SQL database.",
+            "homepage": "https://pinkcrab.co.uk",
+            "support": {
+                "issues": "https://github.com/Pink-Crab/WPDB-Table-Builder/issues",
+                "source": "https://github.com/Pink-Crab/WPDB-Table-Builder/tree/1.2.1"
+            },
+            "time": "2026-04-17T21:59:21+00:00"
+        },
+        {
+            "name": "pinkcrab/wp-db-migrations",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Pink-Crab/WPDB_Migrations.git",
+                "reference": "c02dcc5a7f0a9193c8f1a83faa7f893fcdce3e65"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Pink-Crab/WPDB_Migrations/zipball/c02dcc5a7f0a9193c8f1a83faa7f893fcdce3e65",
+                "reference": "c02dcc5a7f0a9193c8f1a83faa7f893fcdce3e65",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0.0",
+                "pinkcrab/table_builder": "1.2.*"
+            },
+            "require-dev": {
+                "dealerdirect/phpcodesniffer-composer-installer": "*",
+                "gin0115/wpunit-helpers": "~1",
+                "php-stubs/wordpress-stubs": "6.9.*",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^8.0 || ^9.0",
+                "roots/wordpress": "6.9.*",
+                "symfony/var-dumper": "*",
+                "szepeviktor/phpstan-wordpress": "^2.0",
+                "vlucas/phpdotenv": "^5.4",
+                "wp-coding-standards/wpcs": "*",
+                "wp-phpunit/wp-phpunit": "6.9.*",
+                "yoast/phpunit-polyfills": "^1.0.0 || ^2.0.0"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [],
+                "psr-4": {
+                    "PinkCrab\\DB_Migration\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Glynn Quelch",
+                    "email": "glynn.quelch@pinkcrab.co.uk",
+                    "homepage": "http://clappo.co.uk",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Creates wpdb migrations as part of the PinkCrab Plugin Framework",
+            "homepage": "https://pinkcrab.co.uk",
+            "support": {
+                "issues": "https://github.com/Pink-Crab/WPDB_Migrations/issues",
+                "source": "https://github.com/Pink-Crab/WPDB_Migrations/tree/1.1.0"
+            },
+            "time": "2026-04-18T01:01:39+00:00"
         },
         {
             "name": "pinkcrab/wp-rest-schema",

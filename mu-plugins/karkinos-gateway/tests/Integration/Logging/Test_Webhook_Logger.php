@@ -6,6 +6,7 @@ namespace Karkinos\Gateway\Tests\Integration\Logging;
 
 use Karkinos\Gateway\Logging\Webhook_Logger;
 use PinkCrab\Perique\Application\App;
+use PinkCrab\Perique\Application\App_Config;
 use WP_UnitTestCase;
 
 /**
@@ -16,14 +17,16 @@ use WP_UnitTestCase;
 class Test_Webhook_Logger extends WP_UnitTestCase {
 
 	private string $log_dir;
+	private App_Config $config;
 
 	public function set_up(): void {
 		parent::set_up();
-		$this->log_dir = WP_CONTENT_DIR . '/karkinos-gateway-logs';
+		$this->config  = App::make( App_Config::class );
+		$this->log_dir = (string) $this->config->path( 'webhook_logs' );
 	}
 
 	public function tear_down(): void {
-		delete_option( Webhook_Logger::OPTION_LOG_FILES );
+		delete_option( $this->config->additional( 'webhook_log_files_option' ) );
 
 		if ( is_dir( $this->log_dir ) ) {
 			foreach ( (array) glob( $this->log_dir . '/*' ) as $file ) {
@@ -75,7 +78,7 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 	public function test_filename_persisted_in_option(): void {
 		$this->logger()->log( array( 'a' => 1 ) );
 
-		$map = get_option( Webhook_Logger::OPTION_LOG_FILES );
+		$map = get_option( $this->config->additional( 'webhook_log_files_option' ) );
 		$this->assertIsArray( $map );
 
 		$date = gmdate( 'Y-m-d' );
@@ -95,7 +98,7 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 		$autoload = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT autoload FROM {$wpdb->options} WHERE option_name = %s",
-				Webhook_Logger::OPTION_LOG_FILES
+				$this->config->additional( 'webhook_log_files_option' )
 			)
 		);
 
@@ -111,12 +114,12 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 		$logger = $this->logger();
 		$logger->log( array( 'a' => 1 ) );
 
-		$map_after_first    = get_option( Webhook_Logger::OPTION_LOG_FILES );
+		$map_after_first    = get_option( $this->config->additional( 'webhook_log_files_option' ) );
 		$filename_first     = $map_after_first[ gmdate( 'Y-m-d' ) ];
 
 		$logger->log( array( 'b' => 2 ) );
 
-		$map_after_second   = get_option( Webhook_Logger::OPTION_LOG_FILES );
+		$map_after_second   = get_option( $this->config->additional( 'webhook_log_files_option' ) );
 		$filename_second    = $map_after_second[ gmdate( 'Y-m-d' ) ];
 
 		$this->assertSame( $filename_first, $filename_second );
@@ -127,7 +130,7 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 	}
 
 	private function todays_log_path(): string {
-		$map = get_option( Webhook_Logger::OPTION_LOG_FILES );
+		$map = get_option( $this->config->additional( 'webhook_log_files_option' ) );
 		return $this->log_dir . '/' . $map[ gmdate( 'Y-m-d' ) ];
 	}
 }

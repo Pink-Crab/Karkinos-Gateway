@@ -2,12 +2,9 @@
 /**
  * AI Log Tag taxonomy.
  *
- * Free-form (flat) tags attached only to AI Log entries. Distinct from the
- * Project taxonomy (which is shared with Dev Asset) — tags are for ad-hoc
- * classification of individual log entries: "refactor", "incident", etc.
- *
- * Admin-only: no front-end URL, no archive. Exposed via REST so agents can
- * tag entries programmatically.
+ * Free-form (flat) tags attached only to AI Log entries. Slug + labels
+ * resolved through App_Config — alias names are literal strings.
+ * Admin-only.
  *
  * @package Karkinos\Gateway\Taxonomy
  */
@@ -16,44 +13,26 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\Taxonomy;
 
-use Karkinos\Gateway\PostType\AI_Log;
+use PinkCrab\Perique\Application\App_Config;
 use PinkCrab\Registerables\Taxonomy;
 
 class AI_Log_Tag extends Taxonomy {
 
-	/** Registered taxonomy slug. */
-	public const SLUG = 'ai_log_tag';
-
-	/** @var string Taxonomy slug used in register_taxonomy(). */
-	public string $slug = self::SLUG;
-
-	/** @var ?string Singular label shown in admin UI. */
-	public ?string $singular = 'AI Log Tag';
-
-	/** @var string Plural label shown in admin UI. */
-	public string $plural = 'AI Log Tags';
-
-	/** @var bool Flat (false) like core 'post_tag'. */
-	public bool $hierarchical = false;
-
-	/** @var array<int, string> Post types this taxonomy is attached to. */
-	public array $object_type = array( AI_Log::SLUG );
-
-	/** @var bool Public-facing visibility (front-end URLs, archives). Off. */
-	public bool $public = false;
-
-	/** @var bool Queryable via URL params. Off. */
+	public bool $hierarchical       = false;
+	public bool $public             = false;
 	public bool $publicly_queryable = false;
+	public bool $show_admin_column  = true;
+	public bool $show_in_rest       = true;
 
-	/** @var bool Render the term-management UI in wp-admin. On. */
-	public bool $show_ui = true;
-
-	/** @var bool Show entry under parent menu. On. */
-	public bool $show_in_menu = true;
-
-	/** @var bool Add a column on the AI Log list table showing assigned tags. On. */
-	public bool $show_admin_column = true;
-
-	/** @var bool Expose via the REST API so agents can read/write tags. On. */
-	public bool $show_in_rest = true;
+	/**
+	 * Resolve slug, post-type binding, and i18n labels through App_Config.
+	 *
+	 * @param App_Config $app_config Injected by the DI container.
+	 */
+	public function __construct( App_Config $app_config ) {
+		$this->slug        = $app_config->taxonomies( 'ai_log_tag' );
+		$this->singular    = __( 'AI Log Tag', 'karkinos-gateway' );
+		$this->plural      = __( 'AI Log Tags', 'karkinos-gateway' );
+		$this->object_type = array( $app_config->post_types( 'ai_log' ) );
+	}
 }

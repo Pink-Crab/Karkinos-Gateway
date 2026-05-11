@@ -2,15 +2,8 @@
 /**
  * Dev Asset post type.
  *
- * Stores developer/manager artefacts associated with a Project (the GitHub
- * repo). Each entry has a `type` of `file`, `link`, or `snippet`:
- *
- *   - `file`     : an attachment from the Media Library (id stored in meta).
- *   - `link`     : an external URL (stored in meta).
- *   - `snippet`  : free-text content lives in post_content (the editor).
- *
- * Admin-only: no front-end URL, no archive. Exposed via REST so callers can
- * create / read entries programmatically.
+ * Stores developer/manager artefacts (file | link | snippet) associated
+ * with a Project. Slug + meta-key aliases resolved through App_Config.
  *
  * @package Karkinos\Gateway\PostType
  */
@@ -19,120 +12,115 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\PostType;
 
+use PinkCrab\Perique\Application\App_Config;
 use PinkCrab\Registerables\Meta_Data;
 use PinkCrab\Registerables\Post_Type;
+use PinkCrab\WP_Rest_Schema\Argument\Integer_Type;
+use PinkCrab\WP_Rest_Schema\Argument\String_Type;
+use PinkCrab\WP_Rest_Schema\Parser\Argument_Parser;
 
 class Dev_Asset extends Post_Type {
 
-	/** Registered post type key. */
-	public const SLUG = 'dev_asset';
-
-	/** Meta key holding the asset's type (one of TYPE_* below). */
-	public const META_TYPE = 'kg_dev_asset_type';
-
-	/** Meta key holding an external URL (used when type = link). */
-	public const META_URL = 'kg_dev_asset_url';
-
-	/** Meta key holding a Media Library attachment ID (used when type = file). */
-	public const META_ATTACHMENT_ID = 'kg_dev_asset_attachment_id';
-
+	// Enum values for the type meta. These are the *values* stored in DB,
+	// not aliases — they're not looked up via App_Config.
 	public const TYPE_FILE    = 'file';
 	public const TYPE_LINK    = 'link';
 	public const TYPE_SNIPPET = 'snippet';
 
-	/** @var list<string> Valid values for the META_TYPE meta. */
+	/**
+ * @var list<string> Valid values for the type meta.
+*/
 	public const TYPES = array( self::TYPE_FILE, self::TYPE_LINK, self::TYPE_SNIPPET );
 
-	/** @var string Post type key passed to register_post_type(). */
-	public string $key = self::SLUG;
-
-	/** @var string Singular admin label. */
-	public string $singular = 'Dev Asset';
-
-	/** @var string Plural admin label. */
-	public string $plural = 'Dev Assets';
-
-	/** @var string WP admin menu icon. */
 	public string $dashicon = 'dashicons-portfolio';
 
-	/** @var bool|null Public-facing visibility. Off. */
-	public ?bool $public = false;
-
-	/** @var bool|null Queryable via URL params. Off. */
-	public ?bool $publicly_queryable = false;
-
-	/** @var bool|null Visible in nav-menu picker. Off. */
-	public ?bool $show_in_nav_menus = false;
-
-	/** @var bool|null Show in WP admin bar. Off. */
-	public ?bool $show_in_admin_bar = false;
-
-	/** @var bool|null Hide from front-end search. On. */
+	public ?bool $public              = false;
+	public ?bool $publicly_queryable  = false;
+	public ?bool $show_in_nav_menus   = false;
+	public ?bool $show_in_admin_bar   = false;
 	public ?bool $exclude_from_search = true;
 
-	/** @var bool|null Hierarchical (parent/child) entries. Off. */
-	public ?bool $hierarchical = false;
-
-	/** @var bool|array<string, mixed>|null Front-end archive. Off. */
+	/**
+ * No front-end archive. Parent default is true.
+*/
 	public $has_archive = false;
 
-	/** @var bool|array<string, mixed>|null Pretty-permalink rewriting. Off. */
+	/**
+ * Disable rewrites. Parent default is null.
+*/
 	public $rewrite = false;
 
-	/** @var bool|string Custom URL query_var. Off. */
-	public $query_var = false;
-
-	/** @var bool|null Expose via REST + enable Gutenberg. On. */
-	public ?bool $show_in_rest = true;
-
-	/** @var array<int, string> Core feature panels enabled for this CPT. */
+	/**
+ * Core feature panels enabled for this CPT. Parent default is empty array.
+*/
 	public array $supports = array( 'title', 'editor', 'custom-fields' );
 
 	/**
-	 * Register the post-meta exposed via REST for this CPT.
+	 * Resolve slug + i18n labels through App_Config.
 	 *
-	 * Each meta has its REST schema declared inline so consumers (and the
-	 * default REST controller) get proper validation + visibility.
+	 * @param App_Config $app_config Injected by the DI container.
+	 */
+	public function __construct( private App_Config $app_config ) {
+		$this->key      = $app_config->post_types( 'dev_asset' );
+		$this->singular = __( 'Dev Asset', 'karkinos-gateway' );
+		$this->plural   = __( 'Dev Assets', 'karkinos-gateway' );
+	}
+
+	/**
+	 * Register the post-meta exposed via REST for this CPT.
 	 *
 	 * @param Meta_Data[] $collection Accumulator passed by the framework.
 	 *
 	 * @return Meta_Data[] Same collection with the dev-asset meta appended.
 	 */
 	public function meta_data( array $collection ): array {
-		$collection[] = ( new Meta_Data( self::META_TYPE ) )
-			->post_type( self::SLUG )
+		$post_type     = $this->app_config->post_types( 'dev_asset' );
+		$type_key      = $this->app_config->post_meta( 'dev_asset_type' );
+		$url_key       = $this->app_config->post_meta( 'dev_asset_url' );
+		$attachment_id = $this->app_config->post_meta( 'dev_asset_attachment_id' );
+
+		$collection[] = ( new Meta_Data( $type_key ) )
+			->post_type( $post_type )
 			->type( 'string' )
 			->single()
 			->default( self::TYPE_SNIPPET )
 			->sanitize( 'sanitize_text_field' )
 			->rest_schema(
-				array(
-					'type' => 'string',
-					'enum' => self::TYPES,
+				Argument_Parser::for_meta_data(
+					String_Type::field( $type_key )
+						->expected( ...self::TYPES )
+						->description( __( 'Asset type: file, link, or snippet.', 'karkinos-gateway' ) )
 				)
 			);
 
-		$collection[] = ( new Meta_Data( self::META_URL ) )
-			->post_type( self::SLUG )
+		$collection[] = ( new Meta_Data( $url_key ) )
+			->post_type( $post_type )
 			->type( 'string' )
 			->single()
 			->default( '' )
 			->sanitize( 'esc_url_raw' )
 			->rest_schema(
-				array(
-					'type'   => 'string',
-					'format' => 'uri',
+				Argument_Parser::for_meta_data(
+					String_Type::field( $url_key )
+						->format( 'uri' )
+						->description( __( 'External URL — used when type = link.', 'karkinos-gateway' ) )
 				)
 			);
 
-		$collection[] = ( new Meta_Data( self::META_ATTACHMENT_ID ) )
-			->post_type( self::SLUG )
+		$collection[] = ( new Meta_Data( $attachment_id ) )
+			->post_type( $post_type )
 			->type( 'integer' )
 			->single()
 			->default( 0 )
 			->sanitize( 'absint' )
-			->rest_schema( array( 'type' => 'integer' ) );
-
+			->rest_schema(
+				Argument_Parser::for_meta_data(
+					Integer_Type::field( $attachment_id )
+						->minimum( 0 )
+						->description( __( 'Media Library attachment ID — used when type = file.', 'karkinos-gateway' ) )
+				)
+			);
+		dump( $collection );
 		return $collection;
 	}
 }

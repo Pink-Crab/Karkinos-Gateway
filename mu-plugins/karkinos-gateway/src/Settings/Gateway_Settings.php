@@ -57,8 +57,13 @@ class Gateway_Settings extends Abstract_Settings {
 	protected function fields( Setting_Collection $settings ): Setting_Collection {
 		return $settings->push(
 			Text::new( self::FIELD_LOCAL_SERVER_IP )
-				->set_label( 'Local server IP' )
-				->set_description( 'Public IP address of the home server. Updated by the home server itself; manual edit only when needed.' )
+				->set_label( __( 'Local server IP', 'karkinos-gateway' ) )
+				->set_description(
+					__(
+						'Public IP address of the home server. Updated by the home server itself; manual edit only when needed.',
+						'karkinos-gateway'
+					)
+				)
 				->set_sanitize( static fn( $value ): string => is_string( $value ) ? trim( $value ) : '' )
 				->set_validate(
 					static fn( $value ): bool => is_string( $value )
