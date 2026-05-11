@@ -120,7 +120,6 @@ class Dev_Asset extends Post_Type {
 						->description( __( 'Media Library attachment ID — used when type = file.', 'karkinos-gateway' ) )
 				)
 			);
-		dump( $collection );
 		return $collection;
 	}
 }
