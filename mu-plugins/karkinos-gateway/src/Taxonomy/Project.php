@@ -4,11 +4,10 @@
  *
  * Shared classification across AI Log and Dev Asset entries. Each Project
  * term represents one GitHub repo; the repo identifier is stored as term
- * meta (`kg_project_github_repo`, format "org/repo") so we can join
- * incoming webhook deliveries to their owning project.
+ * meta (alias `project_github_repo`).
  *
- * Flat (non-hierarchical) — projects are independent units, no parent /
- * child structure. Admin-only.
+ * Slug + meta-key aliases resolved through App_Config — alias names are
+ * literal strings (no class constants).
  *
  * @package Karkinos\Gateway\Taxonomy
  */
@@ -17,72 +16,57 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\Taxonomy;
 
-use Karkinos\Gateway\PostType\AI_Log;
-use Karkinos\Gateway\PostType\Dev_Asset;
+use PinkCrab\Perique\Application\App_Config;
 use PinkCrab\Registerables\Meta_Data;
 use PinkCrab\Registerables\Taxonomy;
+use PinkCrab\WP_Rest_Schema\Argument\String_Type;
+use PinkCrab\WP_Rest_Schema\Parser\Argument_Parser;
 
 class Project extends Taxonomy {
 
-	/** Registered taxonomy slug. */
-	public const SLUG = 'project';
-
-	/** Term meta key storing the GitHub org/repo identifier. */
-	public const META_GITHUB_REPO = 'kg_project_github_repo';
-
-	/** @var string Taxonomy slug passed to register_taxonomy(). */
-	public string $slug = self::SLUG;
-
-	/** @var ?string Singular admin label. */
-	public ?string $singular = 'Project';
-
-	/** @var string Plural admin label. */
-	public string $plural = 'Projects';
-
-	/** @var bool Flat — no parent/child terms. */
-	public bool $hierarchical = false;
-
-	/** @var array<int, string> Post types this taxonomy attaches to. */
-	public array $object_type = array( AI_Log::SLUG, Dev_Asset::SLUG );
-
-	/** @var bool Public-facing visibility. Off. */
-	public bool $public = false;
-
-	/** @var bool Queryable from URL params. Off. */
+	public bool $hierarchical       = false;
+	public bool $public             = false;
 	public bool $publicly_queryable = false;
-
-	/** @var bool Render admin UI for managing terms. On. */
-	public bool $show_ui = true;
-
-	/** @var bool Show in side menu. On. */
-	public bool $show_in_menu = true;
-
-	/** @var bool Add a column showing assigned terms on the CPT list table. On. */
-	public bool $show_admin_column = true;
-
-	/** @var bool Expose terms via REST. On. */
-	public bool $show_in_rest = true;
+	public bool $show_admin_column  = true;
+	public bool $show_in_rest       = true;
 
 	/**
-	 * Register term-meta for this taxonomy. We only need one meta key:
-	 * the GitHub repo identifier in "org/repo" form.
+	 * Resolve slug, post-type bindings, and i18n labels through App_Config.
+	 *
+	 * @param App_Config $app_config Injected by the DI container.
+	 */
+	public function __construct( private App_Config $app_config ) {
+		$this->slug        = $app_config->taxonomies( 'project' );
+		$this->singular    = __( 'Project', 'karkinos-gateway' );
+		$this->plural      = __( 'Projects', 'karkinos-gateway' );
+		$this->object_type = array(
+			$app_config->post_types( 'ai_log' ),
+			$app_config->post_types( 'dev_asset' ),
+		);
+	}
+
+	/**
+	 * Register the github_repo term meta.
 	 *
 	 * @param Meta_Data[] $collection Accumulator passed by the framework.
 	 *
-	 * @return Meta_Data[] Same collection with the github_repo meta appended.
+	 * @return Meta_Data[] Same collection with the term-meta appended.
 	 */
 	public function meta_data( array $collection ): array {
-		$collection[] = ( new Meta_Data( self::META_GITHUB_REPO ) )
-			->taxonomy( self::SLUG )
+		$taxonomy = $this->app_config->taxonomies( 'project' );
+		$meta_key = $this->app_config->term_meta( 'project_github_repo' );
+
+		$collection[] = ( new Meta_Data( $meta_key ) )
+			->taxonomy( $taxonomy )
 			->type( 'string' )
 			->single()
 			->default( '' )
-			->description( 'GitHub repo this project maps to. Use the "org/repo" form (matches the repository.full_name field in GitHub webhook payloads).' )
+			->description( __( 'GitHub repo this project maps to. Use "org/repo" form (matches webhook payload repository.full_name).', 'karkinos-gateway' ) )
 			->sanitize( 'sanitize_text_field' )
 			->rest_schema(
-				array(
-					'type'        => 'string',
-					'description' => 'GitHub org/repo identifier.',
+				Argument_Parser::for_meta_data(
+					String_Type::field( $meta_key )
+						->description( __( 'GitHub org/repo identifier (matches webhook payload repository.full_name).', 'karkinos-gateway' ) )
 				)
 			);
 

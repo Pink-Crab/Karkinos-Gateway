@@ -3,11 +3,9 @@
     "type": "wordpress-muplugin",
     "description": "Proxy gateway between GitHub Actions and the home server.",
     "license": "GPL-3.0-or-later",
-    "authors": [
-        {
-            "name": "Glynn Quelch"
-        }
-    ],
+    "authors": [{
+        "name": "Glynn Quelch"
+    }],
     "autoload": {
         "psr-4": {
             "Karkinos\\Gateway\\": "src"
@@ -27,7 +25,7 @@
         "pinkcrab/perique-settings-page": "2.1.*",
         "pinkcrab/form-components": "2.1.*",
         "pinkcrab/registerables": "2.1.*",
-        "pinkcrab/perique-migrations": "2.1.*",
+        "pinkcrab/perique-migration": "2.1.*",
         "pinkcrab/wp-rest-schema": "^1.0"
     },
     "require-dev": {

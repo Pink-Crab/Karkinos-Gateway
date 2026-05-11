@@ -44,7 +44,18 @@ if ( ! is_file( KARKINOS_GATEWAY_PATH . 'vendor/autoload.php' ) ) {
 	add_action(
 		'admin_notices',
 		static function (): void {
-			echo '<div class="notice notice-error"><p><strong>Karkinos Gateway:</strong> vendor/autoload.php not found — run <code>composer install</code> inside <code>mu-plugins/karkinos-gateway/</code>.</p></div>';
+			printf(
+				'<div class="notice notice-error"><p><strong>%1$s</strong> %2$s</p></div>',
+				esc_html__( 'Karkinos Gateway:', 'karkinos-gateway' ),
+				wp_kses(
+					sprintf(
+						/* translators: %s: composer command to run. */
+						__( 'vendor/autoload.php not found — run %s inside the mu-plugin directory.', 'karkinos-gateway' ),
+						'<code>composer install</code>'
+					),
+					array( 'code' => array() )
+				)
+			);
 		}
 	);
 	return;

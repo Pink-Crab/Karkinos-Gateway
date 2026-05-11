@@ -24,5 +24,5 @@ return array(
 	\Karkinos\Gateway\Taxonomy\AI_Log_Tag::class,
 
 	// Dispatch queue.
-	\Karkinos\Gateway\Dispatch\Schema_Installer::class,
+	\Karkinos\Gateway\Dispatch\Migrations_Runner::class,
 );
