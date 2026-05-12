@@ -68,9 +68,13 @@ class Dev_Asset_Media_Picker implements Hookable {
 
 		wp_enqueue_media();
 
+		// App_Config::url() is typed string|array|null — narrow before concat.
+		$assets_url_raw = $this->app_config->url( 'assets' );
+		$assets_url     = is_string( $assets_url_raw ) ? $assets_url_raw : '';
+
 		wp_enqueue_script(
 			self::SCRIPT_HANDLE,
-			$this->app_config->url( 'assets' ) . self::SCRIPT_PATH,
+			$assets_url . self::SCRIPT_PATH,
 			array( 'media-editor' ),
 			$this->app_config->version(),
 			true
@@ -78,7 +82,7 @@ class Dev_Asset_Media_Picker implements Hookable {
 
 		wp_enqueue_style(
 			self::STYLE_HANDLE,
-			$this->app_config->url( 'assets' ) . self::STYLE_PATH,
+			$assets_url . self::STYLE_PATH,
 			array(),
 			$this->app_config->version()
 		);

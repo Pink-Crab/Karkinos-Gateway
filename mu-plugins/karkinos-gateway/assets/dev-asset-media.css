@@ -1,0 +1,81 @@
+/**
+ * Dev Asset meta box layout.
+ *
+ * Scoped under .kg-da-meta (added by views/meta-box/dev-asset-fields.php).
+ */
+
+.kg-da-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 4px 0;
+}
+
+.kg-da-meta label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.kg-da-meta input[type="text"],
+.kg-da-meta input[type="url"],
+.kg-da-meta select {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.kg-da-section {
+	border-top: 1px solid #dcdcde;
+	padding-top: 14px;
+}
+
+.kg-da-section-title {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+/**
+ * File preview area.
+ *
+ * Column layout so the (potentially full-size) image stacks above the title /
+ * link. Empty state collapses naturally.
+ */
+.kg-da-file-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+
+.kg-da-file-preview [data-kg-da-preview]:empty {
+	display: none;
+}
+
+.kg-da-file-preview [data-kg-da-preview] img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	border-radius: 3px;
+}
+
+.kg-da-file-preview [data-kg-da-title] {
+	color: #1d2327;
+}
+
+.kg-da-file-preview [data-kg-da-title] a {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	text-decoration: none;
+}
+
+.kg-da-file-preview [data-kg-da-title] a img {
+	width: 24px;
+	height: 24px;
+}
+
+.kg-da-meta .button + .button-link {
+	margin-left: 8px;
+}
