@@ -7,6 +7,14 @@
  * `KARKINOS_GH_WEBHOOK_SECRET`, logs every delivery (valid or not), then
  * either ACKs the ping or 202-accepts other events.
  *
+ * Security posture:
+ *   - Bodies above MAX_BODY_BYTES are rejected with 413 *before* any I/O,
+ *     so an unauthenticated attacker can't fill the disk by POSTing huge
+ *     payloads.
+ *   - Invalid-signature deliveries are still logged (operator visibility)
+ *     but only headers + body sha256 are persisted — the parsed payload
+ *     is reserved for verified deliveries.
+ *
  * @package Karkinos\Gateway\Rest
  */
 
@@ -24,6 +32,14 @@ class Webhook_Routes extends Route_Controller {
 
 	/** @var ?string Shared REST namespace. */
 	protected ?string $namespace = 'karkinos-gateway/v1';
+
+	/**
+	 * Maximum accepted request body size, in bytes. GitHub itself caps
+	 * webhook payloads at 25 MB; legitimate deliveries are typically
+	 * < 100 KB. 5 MB leaves comfortable headroom for the largest real
+	 * events while rejecting anything obviously hostile.
+	 */
+	private const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 	/**
 	 * Constructor.
@@ -48,10 +64,11 @@ class Webhook_Routes extends Route_Controller {
 	/**
 	 * Handle one delivery from GitHub.
 	 *
-	 * Flow: verify signature → log → reply.
-	 *   - Invalid signature → 401 (still logged).
-	 *   - `ping` event      → 200 with {ok:true, pong:true}.
-	 *   - Anything else     → 202 Accepted (real dispatch wired in next iteration).
+	 * Flow: size cap → verify signature → log → reply.
+	 *   - Body > MAX_BODY_BYTES → 413, nothing logged (denial-of-storage guard).
+	 *   - Invalid signature      → 401, logged with body hash only (no payload).
+	 *   - `ping` event           → 200 with {ok:true, pong:true}.
+	 *   - Anything else          → 202 Accepted (real dispatch wired in next iteration).
 	 *
 	 * @param WP_REST_Request $request Inbound request — raw body is read for HMAC verify.
 	 *
@@ -63,32 +80,44 @@ class Webhook_Routes extends Route_Controller {
 		$event            = (string) $request->get_header( 'x-github-event' );
 		$delivery         = (string) $request->get_header( 'x-github-delivery' );
 
-		$signature_valid = $this->verify_signature( $raw_body, $signature_header );
-
-		$payload = json_decode( $raw_body, true );
-		if ( ! is_array( $payload ) ) {
-			$payload = array();
+		if ( strlen( $raw_body ) > self::MAX_BODY_BYTES ) {
+			return new WP_REST_Response(
+				array( 'error' => 'request_too_large' ),
+				413
+			);
 		}
 
-		$action = isset( $payload['action'] ) && is_string( $payload['action'] )
-			? $payload['action']
-			: null;
+		$signature_valid = $this->verify_signature( $raw_body, $signature_header );
 
-		$repo = isset( $payload['repository']['full_name'] ) && is_string( $payload['repository']['full_name'] )
-			? $payload['repository']['full_name']
-			: null;
-
-		$this->logger->log(
-			array(
-				'ts'              => gmdate( 'c' ),
-				'delivery'        => $delivery,
-				'event'           => $event !== '' ? $event : null,
-				'action'          => $action,
-				'repo'            => $repo,
-				'signature_valid' => $signature_valid,
-				'payload'         => $payload,
-			)
+		$record = array(
+			'ts'              => gmdate( 'c' ),
+			'delivery'        => $delivery,
+			'event'           => '' !== $event ? $event : null,
+			'signature_valid' => $signature_valid,
+			'body_hash'       => 'sha256:' . hash( 'sha256', $raw_body ),
+			'action'          => null,
+			'repo'            => null,
 		);
+
+		// Only verified payloads are parsed and persisted in full. Unverified
+		// requests are logged for visibility but their bodies are not stored
+		// — an attacker who can hit the endpoint cannot use it as a journal.
+		if ( $signature_valid ) {
+			$payload = json_decode( $raw_body, true );
+			if ( ! is_array( $payload ) ) {
+				$payload = array();
+			}
+
+			if ( isset( $payload['action'] ) && is_string( $payload['action'] ) ) {
+				$record['action'] = $payload['action'];
+			}
+			if ( isset( $payload['repository']['full_name'] ) && is_string( $payload['repository']['full_name'] ) ) {
+				$record['repo'] = $payload['repository']['full_name'];
+			}
+			$record['payload'] = $payload;
+		}
+
+		$this->logger->log( $record );
 
 		if ( ! $signature_valid ) {
 			return new WP_REST_Response(
@@ -112,7 +141,7 @@ class Webhook_Routes extends Route_Controller {
 			array(
 				'ok'       => true,
 				'event'    => $event,
-				'action'   => $action,
+				'action'   => $record['action'],
 				'delivery' => $delivery,
 			),
 			202

@@ -14,6 +14,7 @@ return array(
 	\Karkinos\Gateway\Rest\Settings_Routes::class,
 	\Karkinos\Gateway\Rest\Webhook_Routes::class,
 	\Karkinos\Gateway\Rest\Ingest_Routes::class,
+	\Karkinos\Gateway\Rest\Query_Routes::class,
 
 	// Post types.
 	\Karkinos\Gateway\PostType\AI_Log::class,
@@ -22,6 +23,10 @@ return array(
 	// Taxonomies.
 	\Karkinos\Gateway\Taxonomy\Project::class,
 	\Karkinos\Gateway\Taxonomy\AI_Log_Tag::class,
+
+	// Admin UI.
+	\Karkinos\Gateway\Admin\Project_Term_Form::class,
+	\Karkinos\Gateway\Admin\Dev_Asset_Media_Picker::class,
 
 	// Dispatch queue.
 	\Karkinos\Gateway\Dispatch\Migrations_Runner::class,

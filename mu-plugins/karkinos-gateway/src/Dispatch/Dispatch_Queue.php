@@ -63,13 +63,27 @@ class Dispatch_Queue {
 	public function enqueue( array $data ): int {
 		global $wpdb;
 
+		$raw_target_url = (string) ( $data['target_url'] ?? '' );
+		$target_url     = esc_url_raw( $raw_target_url );
+
+		// esc_url_raw silently strips any protocol outside WP's allow-list
+		// (file://, javascript:, data:, …) to ''. Without this guard those
+		// would slip through is_safe_target_url's empty-input fast path.
+		if ( '' !== $raw_target_url && '' === $target_url ) {
+			return 0;
+		}
+
+		if ( ! $this->is_safe_target_url( $target_url ) ) {
+			return 0;
+		}
+
 		$row = array(
 			'priority'        => max( 0, (int) ( $data['priority'] ?? Dispatch_Job::PRIORITY_DEFAULT ) ),
 			'status'          => Dispatch_Job::STATUS_PENDING,
 			'source'          => sanitize_key( $data['source'] ?? '' ),
 			'event'           => sanitize_key( $data['event'] ?? '' ),
 			'delivery_id'     => sanitize_text_field( $data['delivery_id'] ?? '' ),
-			'target_url'      => esc_url_raw( $data['target_url'] ?? '' ),
+			'target_url'      => $target_url,
 			'payload'         => (string) ( $data['payload'] ?? '' ),
 			'created_at'      => current_time( 'mysql', true ),
 			'response_status' => 0,
@@ -267,5 +281,66 @@ class Dispatch_Queue {
 	 */
 	private function truncate( string $text, int $max = 10000 ): string {
 		return strlen( $text ) <= $max ? $text : substr( $text, 0, $max ) . '…';
+	}
+
+	/**
+	 * SSRF guard for the URL the dispatch worker will eventually POST to.
+	 *
+	 * Empty values pass (caller didn't specify a target). Non-empty values
+	 * must be http/https and resolve, syntactically, to something other
+	 * than localhost / private / reserved IP space — at enqueue time the
+	 * worker hasn't run yet, so this is a coarse pre-flight check. The
+	 * worker should re-check at request time (post-DNS resolution) since
+	 * an attacker controlling DNS can flip a public hostname to a private
+	 * IP between enqueue and dispatch.
+	 *
+	 * @param string $url URL to evaluate. Already passed through esc_url_raw.
+	 *
+	 * @return bool True if the URL is empty or safe to keep; false to reject.
+	 */
+	private function is_safe_target_url( string $url ): bool {
+		if ( '' === $url ) {
+			return true;
+		}
+
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) ) {
+			return false;
+		}
+
+		$scheme = strtolower( (string) ( $parts['scheme'] ?? '' ) );
+		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
+			return false;
+		}
+
+		$host = strtolower( (string) ( $parts['host'] ?? '' ) );
+		if ( '' === $host ) {
+			return false;
+		}
+
+		if ( in_array( $host, array( 'localhost', 'localhost.localdomain' ), true ) ) {
+			return false;
+		}
+
+		if ( str_ends_with( $host, '.local' ) || str_ends_with( $host, '.localhost' ) ) {
+			return false;
+		}
+
+		// IP literal? Strip IPv6 brackets first, then reject anything in
+		// private (RFC 1918 / ULA) or reserved (loopback, link-local,
+		// multicast, AWS metadata at 169.254.169.254) ranges.
+		$ip_candidate = $host;
+		if ( str_starts_with( $ip_candidate, '[' ) && str_ends_with( $ip_candidate, ']' ) ) {
+			$ip_candidate = substr( $ip_candidate, 1, -1 );
+		}
+		if ( false !== filter_var( $ip_candidate, FILTER_VALIDATE_IP ) ) {
+			return false !== filter_var(
+				$ip_candidate,
+				FILTER_VALIDATE_IP,
+				FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+			);
+		}
+
+		return true;
 	}
 }
