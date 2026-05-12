@@ -28,6 +28,13 @@ class AI_Log extends Post_Type {
 	public ?bool $show_in_admin_bar   = false;
 	public ?bool $exclude_from_search = true;
 
+	/**
+	 * Map meta caps to capability_type's primitive caps so admins can edit.
+	 * Without this, current_user_can('edit_post', $id) fails for non-public
+	 * CPTs and you get "Sorry, you are not allowed to edit this post".
+	 */
+	public ?bool $map_meta_cap = true;
+
 	/** No front-end archive. Parent default is true. */
 	public $has_archive = false;
 
