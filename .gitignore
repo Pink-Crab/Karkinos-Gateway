@@ -5,8 +5,10 @@
 # Claude
 .claude
 
-# wp-content/assets source images (theme has its own copies)
-assets
+# wp-content/assets source images (theme has its own copies). Anchored to
+# repo root with leading slash — without it, gitignore matches any
+# directory named `assets` anywhere in the tree (including theme assets).
+/assets/
 
 # Uploads — never tracked
 uploads/
@@ -18,6 +20,7 @@ plugins/*
 mu-plugins/*
 
 !mu-plugins/karkinos-gateway/
+!mu-plugins/mu-loader.php
 
 # karkinos-gateway build artefacts
 mu-plugins/karkinos-gateway/vendor/
