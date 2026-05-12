@@ -112,10 +112,10 @@ class Query_Routes extends Route_Controller {
 		$per_page = (int) $request->get_param( 'per_page' );
 		$page     = (int) $request->get_param( 'page' );
 
-		$matched_ids = $this->find_project_term_ids( $search );
-		$total       = count( $matched_ids );
+		$match_modeed_ids = $this->find_project_term_ids( $search );
+		$total       = count( $match_modeed_ids );
 
-		$paged_ids = array_slice( $matched_ids, ( $page - 1 ) * $per_page, $per_page );
+		$paged_ids = array_slice( $match_modeed_ids, ( $page - 1 ) * $per_page, $per_page );
 		$terms     = $this->load_terms_in_order( $paged_ids );
 
 		$items = array();
@@ -184,11 +184,11 @@ class Query_Routes extends Route_Controller {
 			? array_values( array_filter( array_map( 'trim', explode( ',', $tags_param ) ) ) )
 			: array();
 
-		$match    = (string) $request->get_param( 'match' );
+		$match_mode    = (string) $request->get_param( 'match' );
 		$per_page = (int) $request->get_param( 'per_page' );
 		$page     = (int) $request->get_param( 'page' );
 
-		$ai_logs    = $this->query_ai_logs( $project_term->term_id, $tag_slugs, $match, $per_page, $page );
+		$ai_logs    = $this->query_ai_logs( $project_term->term_id, $tag_slugs, $match_mode, $per_page, $page );
 		$dev_assets = $this->query_dev_assets( $project_term->term_id, $per_page, $page );
 
 		return new WP_REST_Response(
@@ -385,13 +385,13 @@ class Query_Routes extends Route_Controller {
 	 *
 	 * @param int      $project_term_id Project term ID (already resolved).
 	 * @param string[] $tag_slugs       Tag slugs; empty means "no tag filter".
-	 * @param string   $match           any|all — IN vs AND when filtering by tags.
+	 * @param string   $match_mode           any|all — IN vs AND when filtering by tags.
 	 * @param int      $per_page        Page size.
 	 * @param int      $page            1-based page number.
 	 *
 	 * @return array<string, mixed> { items, total, page, per_page }
 	 */
-	private function query_ai_logs( int $project_term_id, array $tag_slugs, string $match, int $per_page, int $page ): array {
+	private function query_ai_logs( int $project_term_id, array $tag_slugs, string $match_mode, int $per_page, int $page ): array {
 		$tax_query = array(
 			array(
 				'taxonomy' => $this->app_config->taxonomies( 'project' ),
@@ -405,7 +405,7 @@ class Query_Routes extends Route_Controller {
 				'taxonomy' => $this->app_config->taxonomies( 'ai_log_tag' ),
 				'field'    => 'slug',
 				'terms'    => $tag_slugs,
-				'operator' => 'all' === $match ? 'AND' : 'IN',
+				'operator' => 'all' === $match_mode ? 'AND' : 'IN',
 			);
 			$tax_query['relation'] = 'AND';
 		}

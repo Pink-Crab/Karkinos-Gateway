@@ -67,7 +67,8 @@ class Webhook_Logger {
 	 * @return string Absolute filesystem path.
 	 */
 	private function log_dir(): string {
-		return (string) $this->app_config->path( 'webhook_logs' );
+		$path = $this->app_config->path( 'webhook_logs' );
+		return is_string( $path ) ? $path : '';
 	}
 
 	/**

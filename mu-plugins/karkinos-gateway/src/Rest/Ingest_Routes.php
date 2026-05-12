@@ -245,10 +245,13 @@ class Ingest_Routes extends Route_Controller {
 	 * @return WP_REST_Response 201 response with the post summary.
 	 */
 	private function created_response( int $post_id, array $extras = array() ): WP_REST_Response {
+		// get_post_field is typed string|int|array<int> — narrow for post_name.
+		$slug = get_post_field( 'post_name', $post_id );
+
 		return new WP_REST_Response(
 			array(
 				'id'        => $post_id,
-				'slug'      => (string) get_post_field( 'post_name', $post_id ),
+				'slug'      => is_string( $slug ) ? $slug : '',
 				'edit_link' => (string) get_edit_post_link( $post_id, 'raw' ),
 			) + $extras,
 			201
