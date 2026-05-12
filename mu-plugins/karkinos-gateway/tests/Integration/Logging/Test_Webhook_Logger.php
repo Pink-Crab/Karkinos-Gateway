@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Karkinos\Gateway\Tests\Integration\Logging;
 
 use Karkinos\Gateway\Logging\Webhook_Logger;
+use Karkinos\Gateway\Tests\Fakes\Memory_File_Manager;
 use PinkCrab\Perique\Application\App;
 use PinkCrab\Perique\Application\App_Config;
 use WP_UnitTestCase;
@@ -18,44 +19,37 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 
 	private string $log_dir;
 	private App_Config $config;
+	private Memory_File_Manager $files;
 
 	public function set_up(): void {
 		parent::set_up();
 		$this->config  = App::make( App_Config::class );
 		$this->log_dir = (string) $this->config->path( 'webhook_logs' );
+		$this->files   = new Memory_File_Manager();
 	}
 
 	public function tear_down(): void {
 		delete_option( $this->config->additional( 'webhook_log_files_option' ) );
-
-		if ( is_dir( $this->log_dir ) ) {
-			foreach ( (array) glob( $this->log_dir . '/*' ) as $file ) {
-				if ( is_string( $file ) && is_file( $file ) ) {
-					unlink( $file );
-				}
-			}
-			rmdir( $this->log_dir );
-		}
-
 		parent::tear_down();
 	}
 
-	/** @testdox A log call creates the log directory if it does not exist */
+	/** @testdox A log call creates the log directory via the File_Manager */
 	public function test_log_creates_directory(): void {
-		$this->assertDirectoryDoesNotExist( $this->log_dir );
+		$this->assertFalse( $this->files->is_dir( $this->log_dir ) );
 
 		$this->logger()->log( array( 'hello' => 'world' ) );
 
-		$this->assertDirectoryExists( $this->log_dir );
+		$this->assertTrue( $this->files->is_dir( $this->log_dir ) );
 	}
 
 	/** @testdox A log call drops an empty index.php blocker into the directory */
 	public function test_log_creates_index_php_blocker(): void {
 		$this->logger()->log( array( 'a' => 1 ) );
 
-		$index = $this->log_dir . '/index.php';
-		$this->assertFileExists( $index );
-		$this->assertStringContainsString( 'Silence is golden', (string) file_get_contents( $index ) );
+		$index    = $this->log_dir . '/index.php';
+		$contents = $this->files->get_contents( $index );
+		$this->assertIsString( $contents );
+		$this->assertStringContainsString( 'Silence is golden', $contents );
 	}
 
 	/** @testdox A log call appends one JSONL line per call to today's file */
@@ -65,9 +59,11 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 		$logger->log( array( 'n' => 2 ) );
 		$logger->log( array( 'n' => 3 ) );
 
-		$path  = $this->todays_log_path();
-		$lines = array_values( array_filter( explode( "\n", (string) file_get_contents( $path ) ) ) );
+		$path     = $this->todays_log_path();
+		$contents = $this->files->get_contents( $path );
+		$this->assertIsString( $contents );
 
+		$lines = array_values( array_filter( explode( "\n", $contents ) ) );
 		$this->assertCount( 3, $lines );
 		$this->assertSame( 1, json_decode( $lines[0], true )['n'] );
 		$this->assertSame( 2, json_decode( $lines[1], true )['n'] );
@@ -114,19 +110,24 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 		$logger = $this->logger();
 		$logger->log( array( 'a' => 1 ) );
 
-		$map_after_first    = get_option( $this->config->additional( 'webhook_log_files_option' ) );
-		$filename_first     = $map_after_first[ gmdate( 'Y-m-d' ) ];
+		$map_after_first = get_option( $this->config->additional( 'webhook_log_files_option' ) );
+		$filename_first  = $map_after_first[ gmdate( 'Y-m-d' ) ];
 
 		$logger->log( array( 'b' => 2 ) );
 
-		$map_after_second   = get_option( $this->config->additional( 'webhook_log_files_option' ) );
-		$filename_second    = $map_after_second[ gmdate( 'Y-m-d' ) ];
+		$map_after_second = get_option( $this->config->additional( 'webhook_log_files_option' ) );
+		$filename_second  = $map_after_second[ gmdate( 'Y-m-d' ) ];
 
 		$this->assertSame( $filename_first, $filename_second );
 	}
 
+	/**
+	 * Build a Webhook_Logger wired to the in-memory file manager. Tests
+	 * construct the SUT directly rather than going through DI so the
+	 * production File_Manager binding stays untouched.
+	 */
 	private function logger(): Webhook_Logger {
-		return App::make( Webhook_Logger::class );
+		return new Webhook_Logger( $this->config, $this->files );
 	}
 
 	private function todays_log_path(): string {

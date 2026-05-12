@@ -4,7 +4,8 @@
  *
  * Directory path + option key are resolved via App_Config — physical names
  * live in config/settings.php under `path[webhook_logs]` and
- * `additional[webhook_log_files_option]`.
+ * `additional[webhook_log_files_option]`. All disk I/O goes through the
+ * injected File_Manager so tests can swap in an in-memory fake.
  *
  * One file per day. Filenames carry a random hex suffix so the URL can't
  * be guessed from outside; the per-day suffix is persisted in the option
@@ -18,8 +19,8 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\Logging;
 
+use Karkinos\Gateway\Filesystem\File_Manager;
 use PinkCrab\Perique\Application\App_Config;
-use WP_Filesystem_Base;
 
 class Webhook_Logger {
 
@@ -32,9 +33,13 @@ class Webhook_Logger {
 	/**
 	 * Constructor.
 	 *
-	 * @param App_Config $app_config Source of truth for log dir path + option key.
+	 * @param App_Config   $app_config Source of truth for log dir path + option key.
+	 * @param File_Manager $files      Filesystem boundary — production binding is WP_File_Manager.
 	 */
-	public function __construct( private App_Config $app_config ) {}
+	public function __construct(
+		private App_Config $app_config,
+		private File_Manager $files
+	) {}
 
 	/**
 	 * Append a JSONL line describing a delivery.
@@ -53,8 +58,7 @@ class Webhook_Logger {
 			return;
 		}
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- atomic FILE_APPEND | LOCK_EX append; WP_Filesystem has no append API.
-		file_put_contents( $path, $line . "\n", FILE_APPEND | LOCK_EX );
+		$this->files->append( $path, $line . "\n" );
 	}
 
 	/**
@@ -84,25 +88,17 @@ class Webhook_Logger {
 	private function ensure_log_dir(): string {
 		$dir = $this->log_dir();
 
-		if ( is_dir( $dir ) ) {
+		if ( $this->files->is_dir( $dir ) ) {
 			return $dir;
 		}
 
-		global $wp_filesystem;
-		if ( ! function_exists( 'WP_Filesystem' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-		}
-		WP_Filesystem();
-
-		if ( ! $wp_filesystem instanceof WP_Filesystem_Base ) {
+		if ( ! $this->files->mkdir( $dir, self::DIR_MODE ) ) {
 			return $dir;
 		}
-
-		$wp_filesystem->mkdir( $dir, self::DIR_MODE );
 
 		$index = $dir . '/index.php';
-		if ( ! $wp_filesystem->exists( $index ) ) {
-			$wp_filesystem->put_contents( $index, "<?php\n// Silence is golden.\n" );
+		if ( ! $this->files->file_exists( $index ) ) {
+			$this->files->put_contents( $index, "<?php\n// Silence is golden.\n" );
 		}
 
 		return $dir;

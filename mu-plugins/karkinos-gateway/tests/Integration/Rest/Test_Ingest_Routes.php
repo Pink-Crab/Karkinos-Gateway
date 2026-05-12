@@ -219,6 +219,66 @@ class Test_Ingest_Routes extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status() );
 	}
 
+	/** @testdox POST /dev-asset rejects an attachment_id that points at a non-attachment post */
+	public function test_create_dev_asset_rejects_non_attachment_id(): void {
+		wp_set_current_user( $this->editor_id );
+
+		// A regular post (not an attachment) — must not be linkable.
+		$regular_post_id = self::factory()->post->create();
+
+		$response = $this->post(
+			self::DEV_ASSET_ROUTE,
+			array(
+				'title'         => 'Sneaky asset',
+				'type'          => Dev_Asset::TYPE_FILE,
+				'attachment_id' => $regular_post_id,
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+
+		// And no Dev Asset row should have been created (pre-insert validation).
+		$assets = get_posts(
+			array(
+				'post_type'   => $this->config->post_types( 'dev_asset' ),
+				'numberposts' => -1,
+				'post_status' => 'any',
+			)
+		);
+		$this->assertEmpty( $assets, 'A failed validation must not orphan a Dev Asset row.' );
+	}
+
+	/** @testdox POST /dev-asset accepts a real attachment_id and stores it */
+	public function test_create_dev_asset_accepts_real_attachment_id(): void {
+		wp_set_current_user( $this->editor_id );
+
+		$attachment_id = self::factory()->attachment->create_object(
+			'real-asset.pdf',
+			0,
+			array(
+				'post_mime_type' => 'application/pdf',
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'post_title'     => 'Real asset',
+			)
+		);
+
+		$response = $this->post(
+			self::DEV_ASSET_ROUTE,
+			array(
+				'title'         => 'Linked asset',
+				'type'          => Dev_Asset::TYPE_FILE,
+				'attachment_id' => $attachment_id,
+			)
+		);
+
+		$this->assertSame( 201, $response->get_status() );
+
+		$post_id          = $response->get_data()['id'];
+		$attachment_meta  = $this->config->post_meta( 'dev_asset_attachment_id' );
+		$this->assertSame( $attachment_id, (int) get_post_meta( $post_id, $attachment_meta, true ) );
+	}
+
 	/** @testdox POST /dev-asset auto-creates a missing project term */
 	public function test_create_dev_asset_auto_creates_project(): void {
 		wp_set_current_user( $this->editor_id );

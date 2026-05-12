@@ -204,6 +204,87 @@ class Test_Dispatch_Queue extends WP_UnitTestCase {
 		$this->assertNull( $this->queue->find( 999999 ) );
 	}
 
+	/** @testdox enqueue rejects a target_url that points at localhost */
+	public function test_enqueue_rejects_localhost(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'http://localhost/x' ) )
+		);
+	}
+
+	/** @testdox enqueue rejects a target_url that points at the loopback IP */
+	public function test_enqueue_rejects_loopback_ip(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'http://127.0.0.1/x' ) )
+		);
+	}
+
+	/** @testdox enqueue rejects RFC 1918 private IPs (10/8) */
+	public function test_enqueue_rejects_private_10_range(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'http://10.0.0.1/x' ) )
+		);
+	}
+
+	/** @testdox enqueue rejects RFC 1918 private IPs (192.168/16) */
+	public function test_enqueue_rejects_private_192_range(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'http://192.168.1.1/x' ) )
+		);
+	}
+
+	/** @testdox enqueue rejects the AWS metadata service IP (link-local) */
+	public function test_enqueue_rejects_aws_metadata_ip(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue(
+				array( 'payload' => '{}', 'target_url' => 'http://169.254.169.254/latest/meta-data/' )
+			)
+		);
+	}
+
+	/** @testdox enqueue rejects schemes other than http/https */
+	public function test_enqueue_rejects_non_http_scheme(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'file:///etc/passwd' ) )
+		);
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'gopher://x/' ) )
+		);
+	}
+
+	/** @testdox enqueue rejects .local hostnames (mDNS) */
+	public function test_enqueue_rejects_dotlocal_hostname(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue(
+				array( 'payload' => '{}', 'target_url' => 'http://my-server.local/webhook' )
+			)
+		);
+	}
+
+	/** @testdox enqueue rejects IPv6 loopback */
+	public function test_enqueue_rejects_ipv6_loopback(): void {
+		$this->assertSame(
+			0,
+			$this->queue->enqueue( array( 'payload' => '{}', 'target_url' => 'http://[::1]/x' ) )
+		);
+	}
+
+	/** @testdox enqueue allows a public https URL */
+	public function test_enqueue_allows_public_https_url(): void {
+		$id = $this->queue->enqueue(
+			array( 'payload' => '{}', 'target_url' => 'https://example.com/webhook' )
+		);
+		$this->assertGreaterThan( 0, $id );
+		$this->assertSame( 'https://example.com/webhook', $this->queue->find( $id )->target_url );
+	}
+
 	private function truncate_table(): void {
 		global $wpdb;
 		$config = App::make( App_Config::class );
