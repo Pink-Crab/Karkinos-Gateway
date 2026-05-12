@@ -112,10 +112,10 @@ class Query_Routes extends Route_Controller {
 		$per_page = (int) $request->get_param( 'per_page' );
 		$page     = (int) $request->get_param( 'page' );
 
-		$match_modeed_ids = $this->find_project_term_ids( $search );
-		$total       = count( $match_modeed_ids );
+		$matched_ids = $this->find_project_term_ids( $search );
+		$total       = count( $matched_ids );
 
-		$paged_ids = array_slice( $match_modeed_ids, ( $page - 1 ) * $per_page, $per_page );
+		$paged_ids = array_slice( $matched_ids, ( $page - 1 ) * $per_page, $per_page );
 		$terms     = $this->load_terms_in_order( $paged_ids );
 
 		$items = array();
