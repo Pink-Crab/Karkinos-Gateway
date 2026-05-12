@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 use PinkCrab\Perique\Application\App_Config;
 
+
 return array(
 	'path'       => array(
 		'plugin'       => __DIR__ . '/..',
@@ -27,8 +28,9 @@ return array(
 		'webhook_logs' => WP_CONTENT_DIR . '/karkinos-gateway-logs',
 	),
 	'url'        => array(
-		'plugin' => plugin_dir_url( __DIR__ . '/..' ),
-		'view'   => plugin_dir_url( __DIR__ . '/..' ) . 'views',
+		'plugin' => WP_CONTENT_URL . '/mu-plugins/karkinos-gateway/',
+		'view'   => WP_CONTENT_URL . '/mu-plugins/karkinos-gateway/views/',
+		'assets'  => WP_CONTENT_URL . '/mu-plugins/karkinos-gateway/assets/',
 	),
 	'namespaces' => array(
 		'rest' => 'karkinos-gateway/v1',

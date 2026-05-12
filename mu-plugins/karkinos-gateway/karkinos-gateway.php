@@ -63,7 +63,7 @@ if ( ! is_file( KARKINOS_GATEWAY_PATH . 'vendor/autoload.php' ) ) {
 
 require_once KARKINOS_GATEWAY_PATH . 'vendor/autoload.php';
 
-( new App_Factory( __DIR__ ) )
+$r = ( new App_Factory( __DIR__ ) )
 	->default_setup()
 	->di_rules( require __DIR__ . '/config/di.php' )
 	->app_config( require __DIR__ . '/config/settings.php' )
@@ -72,5 +72,5 @@ require_once KARKINOS_GATEWAY_PATH . 'vendor/autoload.php';
 	->module( Admin_Menu::class )
 	->module( Settings_Page_Module::class )
 	->module( Route::class )
-	->module( Registerable::class )
-	->boot();
+	->module( Registerable::class );
+	$r->boot();

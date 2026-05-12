@@ -26,6 +26,13 @@ class Test_Registerables extends WP_UnitTestCase {
 	public function set_up(): void {
 		parent::set_up();
 		$this->config = App::make( App_Config::class );
+
+		// Re-fire init so Perique's Registerable middleware re-registers post
+		// types + meta. WP-PHPUnit's set_up calls unregister_all_meta_keys()
+		// which clears $wp_meta_keys; the framework's own tests
+		// (Perique-Registerables/tests/Application/Post_Type/Test_Meta_Data_CPT)
+		// use the same pattern.
+		do_action( 'init' );
 	}
 
 	/** @testdox AI Log CPT is registered with the slug from App_Config */

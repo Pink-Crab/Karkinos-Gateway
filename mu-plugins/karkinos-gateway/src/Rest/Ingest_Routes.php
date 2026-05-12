@@ -133,6 +133,18 @@ class Ingest_Routes extends Route_Controller {
 	 *                                   the WP_Error from wp_insert_post on failure.
 	 */
 	public function create_dev_asset( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		// edit_posts is too coarse — restrict link target to real attachments. Pre-insert so a bad ID can't orphan a Dev Asset row.
+		$attachment_id = $request->get_param( 'attachment_id' );
+		if ( is_numeric( $attachment_id ) && (int) $attachment_id > 0
+			&& 'attachment' !== get_post_type( (int) $attachment_id )
+		) {
+			return new WP_Error(
+				'karkinos_gateway_invalid_attachment',
+				'attachment_id does not refer to a Media Library attachment.',
+				array( 'status' => 400 )
+			);
+		}
+
 		$post_id = wp_insert_post(
 			array(
 				'post_type'    => $this->app_config->post_types( 'dev_asset' ),
@@ -159,7 +171,6 @@ class Ingest_Routes extends Route_Controller {
 			);
 		}
 
-		$attachment_id = $request->get_param( 'attachment_id' );
 		if ( is_numeric( $attachment_id ) && (int) $attachment_id > 0 ) {
 			update_post_meta(
 				(int) $post_id,
@@ -234,10 +245,13 @@ class Ingest_Routes extends Route_Controller {
 	 * @return WP_REST_Response 201 response with the post summary.
 	 */
 	private function created_response( int $post_id, array $extras = array() ): WP_REST_Response {
+		// get_post_field is typed string|int|array<int> — narrow for post_name.
+		$slug = get_post_field( 'post_name', $post_id );
+
 		return new WP_REST_Response(
 			array(
 				'id'        => $post_id,
-				'slug'      => (string) get_post_field( 'post_name', $post_id ),
+				'slug'      => is_string( $slug ) ? $slug : '',
 				'edit_link' => (string) get_edit_post_link( $post_id, 'raw' ),
 			) + $extras,
 			201

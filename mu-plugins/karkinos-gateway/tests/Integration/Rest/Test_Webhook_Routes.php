@@ -113,6 +113,50 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertSame( 'ping', $record['event'] );
 	}
 
+	/** @testdox Invalid-signature log records the body sha256 but NOT the parsed payload */
+	public function test_invalid_signature_log_omits_payload(): void {
+		$body = wp_json_encode( array( 'secret' => 'do-not-store-this' ) );
+
+		$this->dispatch( 'ping', $body, 'sha256=bogus' );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+
+		$this->assertArrayNotHasKey( 'payload', $record, 'Unverified payloads must not be persisted.' );
+		$this->assertArrayHasKey( 'body_hash', $record );
+		$this->assertSame( 'sha256:' . hash( 'sha256', $body ), $record['body_hash'] );
+	}
+
+	/** @testdox Valid-signature log records the parsed payload in full */
+	public function test_valid_signature_log_includes_payload(): void {
+		$body = wp_json_encode( array( 'zen' => 'verified content' ) );
+
+		$this->dispatch( 'ping', $body, $this->sign( $body ) );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+
+		$this->assertTrue( $record['signature_valid'] );
+		$this->assertSame( array( 'zen' => 'verified content' ), $record['payload'] );
+	}
+
+	/** @testdox A request body larger than the cap is rejected with 413 and never logged */
+	public function test_oversized_body_returns_413_and_skips_logging(): void {
+		// Valid JSON above the 5 MiB MAX_BODY_BYTES cap. Must parse cleanly
+		// — WP's REST stack rejects malformed JSON with 400 before the route
+		// handler runs, which would mask the 413 we're trying to assert.
+		$big_body = (string) wp_json_encode(
+			array( 'data' => str_repeat( 'a', 6 * 1024 * 1024 ) )
+		);
+
+		$response = $this->dispatch( 'ping', $big_body, $this->sign( $big_body ) );
+
+		$this->assertSame( 413, $response->get_status() );
+		$this->assertSame( 'request_too_large', $response->get_data()['error'] );
+		$this->assertEmpty(
+			$this->read_log_lines(),
+			'Oversized requests must short-circuit before any disk I/O.'
+		);
+	}
+
 	private function sign( string $body ): string {
 		return 'sha256=' . hash_hmac( 'sha256', $body, KARKINOS_GH_WEBHOOK_SECRET );
 	}
