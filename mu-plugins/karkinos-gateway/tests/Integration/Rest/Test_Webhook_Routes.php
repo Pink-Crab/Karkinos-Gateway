@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\Tests\Integration\Rest;
 
+use Karkinos\Gateway\Auth\Authorised_Actors;
+use Karkinos\Gateway\Dispatch\Dispatch_Queue;
+use Karkinos\Gateway\Migration\Create_Dispatch_Jobs_Table;
 use PinkCrab\Perique\Application\App;
 use PinkCrab\Perique\Application\App_Config;
 use WP_REST_Request;
@@ -19,14 +22,37 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 	private const ROUTE = '/karkinos-gateway/v1/webhooks/github';
 
 	private App_Config $config;
+	private Authorised_Actors $actors;
+	private Dispatch_Queue $queue;
 
 	public function set_up(): void {
 		parent::set_up();
 		$this->config = App::make( App_Config::class );
+		$this->actors = App::make( Authorised_Actors::class );
+		$this->queue  = App::make( Dispatch_Queue::class );
+
+		delete_option( $this->config->additional( 'authorised_actors_option' ) );
+		$this->truncate_dispatch();
+
+		// Inline dispatch fires on an authorised delivery — stub Karkinos as
+		// "busy" so the worker enqueues but sends nothing (no real network).
+		add_filter(
+			'pre_http_request',
+			fn() => array(
+				'response' => array( 'code' => 200 ),
+				'body'     => '{"available":false}',
+				'headers'  => array(),
+			),
+			10,
+			3
+		);
 	}
 
 	public function tear_down(): void {
+		remove_all_filters( 'pre_http_request' );
+		delete_option( $this->config->additional( 'authorised_actors_option' ) );
 		delete_option( $this->config->additional( 'webhook_log_files_option' ) );
+		$this->truncate_dispatch();
 
 		$dir = (string) $this->config->path( 'webhook_logs' );
 		if ( is_dir( $dir ) ) {
@@ -54,22 +80,57 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertTrue( $data['pong'] );
 	}
 
-	/** @testdox An issues event with a valid signature returns 202 Accepted */
-	public function test_issues_event_with_valid_signature_returns_202(): void {
-		$body     = wp_json_encode(
+	/** @testdox An authorised sender's event returns 202 and enqueues one dispatch job */
+	public function test_authorised_sender_enqueues_job(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body     = $this->event_body( 'octocat' );
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertTrue( $response->get_data()['ok'] );
+		$this->assertSame( 1, $this->queue->pending_count() );
+	}
+
+	/** @testdox An unauthorised sender returns 202 but enqueues nothing */
+	public function test_unauthorised_sender_enqueues_nothing(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body     = $this->event_body( 'randouser' );
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+	}
+
+	/** @testdox An event with no sender returns 202 and enqueues nothing */
+	public function test_no_sender_enqueues_nothing(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body = wp_json_encode(
 			array(
 				'action'     => 'opened',
-				'issue'      => array( 'number' => 42 ),
-				'repository' => array( 'full_name' => 'org/repo' ),
+				'repository' => array( 'full_name' => 'Pink-Crab/repo' ),
 			)
 		);
 		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
 
 		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+	}
 
-		$data = $response->get_data();
-		$this->assertSame( 'issues', $data['event'] );
-		$this->assertSame( 'opened', $data['action'] );
+	/** @testdox The gate decision is recorded in the log */
+	public function test_gate_decision_is_logged(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body = $this->event_body( 'randouser' );
+		$this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'randouser', $record['actor'] );
+		$this->assertFalse( $record['authorised'] );
+		$this->assertFalse( $record['dispatched'] );
+		$this->assertSame( 'unauthorised_actor', $record['dispatch_reason'] );
 	}
 
 	/** @testdox A request with no signature header returns 401 */
@@ -91,8 +152,8 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 
 	/** @testdox A request signed with a different secret returns 401 */
 	public function test_signature_from_wrong_secret_returns_401(): void {
-		$body         = wp_json_encode( array( 'zen' => 'x' ) );
-		$wrong_sig    = 'sha256=' . hash_hmac( 'sha256', $body, 'not-the-real-secret' );
+		$body      = wp_json_encode( array( 'zen' => 'x' ) );
+		$wrong_sig = 'sha256=' . hash_hmac( 'sha256', $body, 'not-the-real-secret' );
 
 		$response = $this->dispatch( 'ping', $body, $wrong_sig );
 
@@ -157,6 +218,24 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Build an issues-event body with a given sender login.
+	 *
+	 * @param string $sender_login Login to set as sender.
+	 *
+	 * @return string JSON body.
+	 */
+	private function event_body( string $sender_login ): string {
+		return (string) wp_json_encode(
+			array(
+				'action'     => 'opened',
+				'issue'      => array( 'number' => 42 ),
+				'repository' => array( 'full_name' => 'Pink-Crab/repo' ),
+				'sender'     => array( 'login' => $sender_login ),
+			)
+		);
+	}
+
 	private function sign( string $body ): string {
 		return 'sha256=' . hash_hmac( 'sha256', $body, KARKINOS_GH_WEBHOOK_SECRET );
 	}
@@ -197,5 +276,12 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$lines    = array_values( array_filter( explode( "\n", $contents ) ) );
 
 		return $lines;
+	}
+
+	private function truncate_dispatch(): void {
+		global $wpdb;
+		$table = $this->config->db_tables( Create_Dispatch_Jobs_Table::TABLE_ALIAS );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery -- Truncate of a test-owned table.
+		$wpdb->query( "TRUNCATE TABLE {$table}" );
 	}
 }
