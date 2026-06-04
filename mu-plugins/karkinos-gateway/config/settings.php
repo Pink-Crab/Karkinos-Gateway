@@ -58,6 +58,9 @@ return array(
 	),
 	'additional' => array(
 		'webhook_log_files_option' => 'karkinos_gateway_webhook_log_files',
+		'authorised_actors_option' => 'karkinos_gateway_authorised_actors',
+		'dispatch_path'            => '/dispatch',
+		'capacity_path'            => '/dispatch/capacity',
 	),
 	'plugin'     => array(
 		'version' => '0.1.0',

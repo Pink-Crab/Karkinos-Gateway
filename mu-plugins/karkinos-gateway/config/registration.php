@@ -15,6 +15,8 @@ return array(
 	\Karkinos\Gateway\Rest\Webhook_Routes::class,
 	\Karkinos\Gateway\Rest\Ingest_Routes::class,
 	\Karkinos\Gateway\Rest\Query_Routes::class,
+	\Karkinos\Gateway\Rest\Actors_Routes::class,
+	\Karkinos\Gateway\Rest\Dispatch_Routes::class,
 
 	// Post types.
 	\Karkinos\Gateway\PostType\AI_Log::class,
@@ -30,4 +32,5 @@ return array(
 
 	// Dispatch queue.
 	\Karkinos\Gateway\Dispatch\Migrations_Runner::class,
+	\Karkinos\Gateway\Dispatch\Karkinos_TLS_Pinning::class,
 );
