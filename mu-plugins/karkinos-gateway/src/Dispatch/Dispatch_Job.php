@@ -3,8 +3,12 @@
  * DTO for a row in the dispatch queue.
  *
  * Pure data — no persistence, no behaviour. Built by Dispatch_Queue::find() /
- * claim_next() from a kg_dispatch_jobs row. Holds the status / priority
- * constants that the rest of the queue stack references.
+ * next() from a kg_dispatch_jobs row.
+ *
+ * The queue has exactly two states, derived from a single column: a job has
+ * either been dispatched (`dispatched_at` set) or not (`dispatched_at` NULL).
+ * There is no in_flight/claim concept — one-at-a-time is enforced remotely by
+ * Karkinos answering "busy" while it holds its own lock.
  *
  * @package Karkinos\Gateway\Dispatch
  */
@@ -15,33 +19,12 @@ namespace Karkinos\Gateway\Dispatch;
 
 final class Dispatch_Job {
 
-	public const STATUS_PENDING   = 'pending';
-	public const STATUS_IN_FLIGHT = 'in_flight';
-	public const STATUS_DONE      = 'done';
-	public const STATUS_FAILED    = 'failed';
-
-	/** @var list<string> Allow-list of statuses for callers that want to validate input. */
-	public const STATUSES = array(
-		self::STATUS_PENDING,
-		self::STATUS_IN_FLIGHT,
-		self::STATUS_DONE,
-		self::STATUS_FAILED,
-	);
-
-	/** Default priority assigned to freshly-enqueued jobs (FIFO). */
-	public const PRIORITY_DEFAULT = 0;
-
-	/** Priority set by bump() — overtakes everything pending at default. */
-	public const PRIORITY_BUMPED = 1000;
-
 	/**
 	 * Construct directly only in tests / factories. Production code should
 	 * use Dispatch_Job::from_row() so DB casts stay in one place.
 	 */
 	public function __construct(
 		public readonly int $id,
-		public readonly int $priority,
-		public readonly string $status,
 		public readonly string $source,
 		public readonly string $event,
 		public readonly string $delivery_id,
@@ -55,6 +38,15 @@ final class Dispatch_Job {
 	) {}
 
 	/**
+	 * Has this job been dispatched (successfully or terminally rejected)?
+	 *
+	 * @return bool True once dispatched_at is stamped.
+	 */
+	public function is_dispatched(): bool {
+		return null !== $this->dispatched_at;
+	}
+
+	/**
 	 * Hydrate from a raw $wpdb->get_row(..., ARRAY_A) result. Missing keys
 	 * default to safe zero-values so partial rows don't blow up.
 	 *
@@ -65,8 +57,6 @@ final class Dispatch_Job {
 	public static function from_row( array $row ): self {
 		return new self(
 			id:              (int) ( $row['id'] ?? 0 ),
-			priority:        (int) ( $row['priority'] ?? 0 ),
-			status:          (string) ( $row['status'] ?? self::STATUS_PENDING ),
 			source:          (string) ( $row['source'] ?? '' ),
 			event:           (string) ( $row['event'] ?? '' ),
 			delivery_id:     (string) ( $row['delivery_id'] ?? '' ),

@@ -22,6 +22,10 @@ declare(strict_types=1);
 
 namespace Karkinos\Gateway\Rest;
 
+use Karkinos\Gateway\Auth\Authorised_Actors;
+use Karkinos\Gateway\Dispatch\Dispatch_Queue;
+use Karkinos\Gateway\Dispatch\Dispatch_Worker;
+use Karkinos\Gateway\Dispatch\Forward_Target;
 use Karkinos\Gateway\Logging\Webhook_Logger;
 use PinkCrab\Route\Route_Controller;
 use PinkCrab\Route\Route_Factory;
@@ -44,9 +48,19 @@ class Webhook_Routes extends Route_Controller {
 	/**
 	 * Constructor.
 	 *
-	 * @param Webhook_Logger $logger Writes one JSONL line per delivery.
+	 * @param Webhook_Logger    $logger Writes one JSONL line per delivery.
+	 * @param Authorised_Actors $actors Roster the sender is gated against.
+	 * @param Dispatch_Queue    $queue  Where an authorised delivery is enqueued.
+	 * @param Forward_Target    $target Resolves the Karkinos dispatch URL.
+	 * @param Dispatch_Worker   $worker Drains the queue (one inline attempt on enqueue).
 	 */
-	public function __construct( private Webhook_Logger $logger ) {}
+	public function __construct(
+		private Webhook_Logger $logger,
+		private Authorised_Actors $actors,
+		private Dispatch_Queue $queue,
+		private Forward_Target $target,
+		private Dispatch_Worker $worker
+	) {}
 
 	/**
 	 * Declare the inbound-webhook routes this controller owns.
@@ -64,11 +78,16 @@ class Webhook_Routes extends Route_Controller {
 	/**
 	 * Handle one delivery from GitHub.
 	 *
-	 * Flow: size cap → verify signature → log → reply.
-	 *   - Body > MAX_BODY_BYTES → 413, nothing logged (denial-of-storage guard).
-	 *   - Invalid signature      → 401, logged with body hash only (no payload).
-	 *   - `ping` event           → 200 with {ok:true, pong:true}.
-	 *   - Anything else          → 202 Accepted (real dispatch wired in next iteration).
+	 * Flow: size cap → verify signature → parse → gate on sender → reply.
+	 *   - Body > MAX_BODY_BYTES   → 413, nothing logged (denial-of-storage guard).
+	 *   - Invalid signature       → 401, logged with body hash only (no payload).
+	 *   - `ping` event            → 200 {ok:true, pong:true} (never forwarded).
+	 *   - Authorised sender        → envelope enqueued + one inline dispatch, 202.
+	 *   - Unauthorised / no sender → nothing enqueued, 202.
+	 *
+	 * The 202 is identical whether or not we forwarded, so the actor gate is
+	 * not observable from GitHub's delivery UI. Every verified delivery is
+	 * logged with the gate decision for operator visibility.
 	 *
 	 * @param WP_REST_Request $request Inbound request — raw body is read for HMAC verify.
 	 *
@@ -97,36 +116,40 @@ class Webhook_Routes extends Route_Controller {
 			'body_hash'       => 'sha256:' . hash( 'sha256', $raw_body ),
 			'action'          => null,
 			'repo'            => null,
+			'actor'           => null,
+			'authorised'      => null,
+			'dispatched'      => false,
+			'dispatch_reason' => null,
+			'job_id'          => null,
 		);
 
-		// Only verified payloads are parsed and persisted in full. Unverified
-		// requests are logged for visibility but their bodies are not stored
-		// — an attacker who can hit the endpoint cannot use it as a journal.
-		if ( $signature_valid ) {
-			$payload = json_decode( $raw_body, true );
-			if ( ! is_array( $payload ) ) {
-				$payload = array();
-			}
-
-			if ( isset( $payload['action'] ) && is_string( $payload['action'] ) ) {
-				$record['action'] = $payload['action'];
-			}
-			if ( isset( $payload['repository']['full_name'] ) && is_string( $payload['repository']['full_name'] ) ) {
-				$record['repo'] = $payload['repository']['full_name'];
-			}
-			$record['payload'] = $payload;
-		}
-
-		$this->logger->log( $record );
-
+		// Unverified requests are logged for visibility but their bodies are
+		// not stored — an attacker who can hit the endpoint cannot use it as a
+		// journal.
 		if ( ! $signature_valid ) {
+			$this->logger->log( $record );
 			return new WP_REST_Response(
 				array( 'error' => 'invalid_signature' ),
 				401
 			);
 		}
 
+		$payload = json_decode( $raw_body, true );
+		if ( ! is_array( $payload ) ) {
+			$payload = array();
+		}
+
+		if ( isset( $payload['action'] ) && is_string( $payload['action'] ) ) {
+			$record['action'] = $payload['action'];
+		}
+		if ( isset( $payload['repository']['full_name'] ) && is_string( $payload['repository']['full_name'] ) ) {
+			$record['repo'] = $payload['repository']['full_name'];
+		}
+		$record['payload'] = $payload;
+
+		// GitHub setup ping — acknowledge locally, never forward.
 		if ( 'ping' === $event ) {
+			$this->logger->log( $record );
 			return new WP_REST_Response(
 				array(
 					'ok'   => true,
@@ -136,16 +159,110 @@ class Webhook_Routes extends Route_Controller {
 			);
 		}
 
-		// Accepted. Event-specific dispatch will land in a follow-up iteration.
+		$actor           = $this->actor_login( $payload );
+		$record['actor'] = '' !== $actor ? $actor : null;
+
+		$this->gate_and_dispatch( $event, $delivery, $actor, $payload, $record );
+
+		$this->logger->log( $record );
+
 		return new WP_REST_Response(
 			array(
 				'ok'       => true,
-				'event'    => $event,
-				'action'   => $record['action'],
 				'delivery' => $delivery,
 			),
 			202
 		);
+	}
+
+	/**
+	 * Apply the actor gate and, if authorised, enqueue the envelope and make
+	 * one inline dispatch attempt. Mutates $record with the gate decision.
+	 *
+	 * @param string               $event    X-GitHub-Event header.
+	 * @param string               $delivery X-GitHub-Delivery header (dedupe key).
+	 * @param string               $actor    Resolved sender login ('' if none).
+	 * @param array<string, mixed> $payload  Parsed, verified GitHub payload.
+	 * @param array<string, mixed> $record   Log record, updated by reference.
+	 *
+	 * @return void
+	 */
+	private function gate_and_dispatch( string $event, string $delivery, string $actor, array $payload, array &$record ): void {
+		if ( '' === $actor ) {
+			$record['authorised']      = false;
+			$record['dispatch_reason'] = 'no_sender';
+			return;
+		}
+
+		$authorised           = $this->actors->is_authorised( $actor );
+		$record['authorised'] = $authorised;
+
+		if ( ! $authorised ) {
+			$record['dispatch_reason'] = 'unauthorised_actor';
+			return;
+		}
+
+		$target = $this->target->url();
+		if ( '' === $target ) {
+			$record['dispatch_reason'] = 'no_target';
+			return;
+		}
+
+		$envelope = wp_json_encode(
+			array(
+				'event'       => '' !== $event ? $event : null,
+				'action'      => $record['action'],
+				'delivery'    => $delivery,
+				'repo'        => $record['repo'],
+				'sender'      => $actor,
+				'received_at' => gmdate( 'c' ),
+				'payload'     => $payload,
+			),
+			JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+		);
+
+		if ( false === $envelope ) {
+			$record['dispatch_reason'] = 'encode_failed';
+			return;
+		}
+
+		$job_id = $this->queue->enqueue(
+			array(
+				'payload'     => $envelope,
+				'source'      => 'github',
+				'event'       => $event,
+				'delivery_id' => $delivery,
+				'target_url'  => $target,
+			)
+		);
+
+		if ( 0 === $job_id ) {
+			$record['dispatch_reason'] = 'enqueue_failed';
+			return;
+		}
+
+		$record['dispatched']      = true;
+		$record['dispatch_reason'] = 'enqueued';
+		$record['job_id']          = $job_id;
+
+		// One inline attempt so a healthy home server gets it immediately; if
+		// Karkinos is busy or down the job simply waits for the external tick.
+		$this->worker->run();
+	}
+
+	/**
+	 * Resolve the acting login from a webhook payload.
+	 *
+	 * `sender.login` is GitHub's "who triggered this delivery" — the labeller
+	 * on a `labeled` action, the commenter on `issue_comment.created`, etc.
+	 *
+	 * @param array<string, mixed> $payload Parsed payload.
+	 *
+	 * @return string Login as sent, or '' when absent.
+	 */
+	private function actor_login( array $payload ): string {
+		$login = $payload['sender']['login'] ?? null;
+		return is_string( $login ) ? $login : '';
 	}
 
 	/**

@@ -1,0 +1,227 @@
+<?php
+/**
+ * Drains the dispatch queue to the Karkinos home server.
+ *
+ * The loop is exactly: ask Karkinos "are you busy?" → if free, take the next
+ * undispatched job, POST it, stamp dispatched_at. Karkinos holds its own lock
+ * while processing, so its "busy" answer is what serialises delivery — the
+ * gateway keeps no local lock. A job is only ever marked dispatched on a
+ * terminal outcome (2xx success or 4xx permanent reject); transient outcomes
+ * (busy/5xx/transport error) leave it untouched to be retried next tick.
+ *
+ * Driven on demand by POST /dispatch/tick (an external cron on the home
+ * server) and once inline when a webhook enqueues. The app never self-
+ * schedules.
+ *
+ * Outbound TLS is pinned to the home server's self-signed cert by identity,
+ * not hostname (the IP rotates) — see Karkinos_TLS_Pinning.
+ *
+ * @package Karkinos\Gateway\Dispatch
+ */
+
+declare(strict_types=1);
+
+namespace Karkinos\Gateway\Dispatch;
+
+class Dispatch_Worker {
+
+	/** Max jobs to attempt in one run, so a tick can't run unbounded. */
+	private const MAX_PER_RUN = 20;
+
+	/** Timeout (seconds) for the capacity probe. */
+	private const PROBE_TIMEOUT = 5;
+
+	/** Timeout (seconds) for a dispatch POST. Kept well under PHP max_execution_time. */
+	private const POST_TIMEOUT = 10;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Dispatch_Queue $queue  Two-state queue (dispatched_at NULL/set).
+	 * @param Forward_Target $target Resolves the Karkinos dispatch + capacity URLs.
+	 */
+	public function __construct(
+		private Dispatch_Queue $queue,
+		private Forward_Target $target
+	) {}
+
+	/**
+	 * Run the drain loop.
+	 *
+	 * @return array{sent:int, rejected:int, stopped:string}
+	 *         Counts plus why the loop stopped: 'busy' (Karkinos full),
+	 *         'empty' (nothing left), 'cap' (hit MAX_PER_RUN),
+	 *         'misconfigured' (missing secret/CA/target), 'transient'
+	 *         (a send failed and will be retried).
+	 */
+	public function run(): array {
+		$sent     = 0;
+		$rejected = 0;
+
+		$secret = $this->secret();
+		$ca     = $this->ca_path();
+
+		if ( null === $secret || null === $ca || '' === $this->target->url() || '' === $this->target->capacity_url() ) {
+			return array(
+				'sent'     => 0,
+				'rejected' => 0,
+				'stopped'  => 'misconfigured',
+			);
+		}
+
+		for ( $i = 0; $i < self::MAX_PER_RUN; $i++ ) {
+			if ( ! $this->karkinos_is_free( $secret, $ca ) ) {
+				return $this->summary( $sent, $rejected, 'busy' );
+			}
+
+			$job = $this->queue->next();
+			if ( null === $job ) {
+				return $this->summary( $sent, $rejected, 'empty' );
+			}
+
+			$response = $this->post( $job, $secret, $ca );
+
+			if ( is_wp_error( $response ) ) {
+				// Transport failure — leave the job for the next tick.
+				return $this->summary( $sent, $rejected, 'transient' );
+			}
+
+			$code = (int) wp_remote_retrieve_response_code( $response );
+			$body = (string) wp_remote_retrieve_body( $response );
+
+			if ( $code >= 200 && $code < 300 ) {
+				$this->queue->mark_dispatched( $job->id, $code, $body );
+				++$sent;
+				continue;
+			}
+
+			if ( $code >= 400 && $code < 500 && 429 !== $code ) {
+				// Permanent rejection (malformed/unwanted). Stamp it so it is
+				// not retried forever; the 4xx is recorded for ops.
+				$this->queue->mark_dispatched( $job->id, $code, $body, 'rejected' );
+				++$rejected;
+				continue;
+			}
+
+			// 429 (busy) / 5xx / anything else → transient. Retry next tick.
+			return $this->summary( $sent, $rejected, 'transient' );
+		}
+
+		return $this->summary( $sent, $rejected, 'cap' );
+	}
+
+	/**
+	 * Probe the capacity/lock endpoint. Free only on 200 + {"available":true}.
+	 *
+	 * @param string $secret Shared bearer secret.
+	 * @param string $ca     Path to the pinned cert.
+	 *
+	 * @return bool True if Karkinos reports it is free to accept a job.
+	 */
+	private function karkinos_is_free( string $secret, string $ca ): bool {
+		$response = wp_remote_get(
+			$this->target->capacity_url(),
+			array(
+				'timeout'                     => self::PROBE_TIMEOUT,
+				'sslverify'                   => true,
+				'sslcertificates'             => $ca,
+				Karkinos_TLS_Pinning::PIN_ARG => true,
+				'headers'                     => array(
+					'Authorization' => 'Bearer ' . $secret,
+					'Accept'        => 'application/json',
+					'User-Agent'    => 'karkinos-gateway',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return false;
+		}
+
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return false;
+		}
+
+		$decoded = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		return is_array( $decoded ) && true === ( $decoded['available'] ?? null );
+	}
+
+	/**
+	 * POST one job's envelope to the Karkinos dispatch endpoint.
+	 *
+	 * The signature is computed over the exact bytes sent, so the payload is
+	 * passed verbatim as a string body (an array would be form-encoded and
+	 * break the HMAC).
+	 *
+	 * @param Dispatch_Job $job    Job to forward.
+	 * @param string       $secret Shared HMAC/bearer secret.
+	 * @param string       $ca     Path to the pinned cert.
+	 *
+	 * @return array<string, mixed>|\WP_Error The wp_remote_post result.
+	 */
+	private function post( Dispatch_Job $job, string $secret, string $ca ): array|\WP_Error {
+		$signature = 'sha256=' . hash_hmac( 'sha256', $job->payload, $secret );
+
+		return wp_remote_post(
+			$this->target->url(),
+			array(
+				'timeout'                     => self::POST_TIMEOUT,
+				'sslverify'                   => true,
+				'sslcertificates'             => $ca,
+				Karkinos_TLS_Pinning::PIN_ARG => true,
+				'body'                        => $job->payload,
+				'headers'                     => array(
+					'Content-Type'         => 'application/json',
+					'X-Karkinos-Event'     => $job->event,
+					'X-Karkinos-Delivery'  => $job->delivery_id,
+					'X-Karkinos-Signature' => $signature,
+					'User-Agent'           => 'karkinos-gateway',
+				),
+			)
+		);
+	}
+
+	/**
+	 * Build the run summary.
+	 *
+	 * @param int    $sent     Jobs forwarded OK.
+	 * @param int    $rejected Jobs permanently rejected (4xx).
+	 * @param string $stopped  Stop reason.
+	 *
+	 * @return array{sent:int, rejected:int, stopped:string}
+	 */
+	private function summary( int $sent, int $rejected, string $stopped ): array {
+		return array(
+			'sent'     => $sent,
+			'rejected' => $rejected,
+			'stopped'  => $stopped,
+		);
+	}
+
+	/**
+	 * Shared secret from wp-config, or null when unset/empty.
+	 *
+	 * @return string|null
+	 */
+	private function secret(): ?string {
+		if ( ! defined( 'KARKINOS_DISPATCH_SECRET' ) ) {
+			return null;
+		}
+		$secret = constant( 'KARKINOS_DISPATCH_SECRET' );
+		return is_string( $secret ) && '' !== $secret ? $secret : null;
+	}
+
+	/**
+	 * Pinned-cert path from wp-config, or null when unset/unreadable.
+	 *
+	 * @return string|null
+	 */
+	private function ca_path(): ?string {
+		if ( ! defined( 'KARKINOS_DISPATCH_CA' ) ) {
+			return null;
+		}
+		$path = constant( 'KARKINOS_DISPATCH_CA' );
+		return is_string( $path ) && is_readable( $path ) ? $path : null;
+	}
+}

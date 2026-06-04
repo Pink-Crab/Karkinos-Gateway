@@ -6,12 +6,19 @@
 declare(strict_types=1);
 
 use Dice\Dice;
+use Karkinos\Gateway\Auth\Authorised_Actors;
 use Karkinos\Gateway\Filesystem\File_Manager;
 use Karkinos\Gateway\Filesystem\WP_File_Manager;
 use Karkinos\Gateway\Settings\Gateway_Settings;
 use Karkinos\Gateway\Settings\Gateway_Settings_Page;
 
 return array(
+	// The roster is read by the webhook receiver and the actors routes; share
+	// one instance so they see the same cached state within a request.
+	Authorised_Actors::class     => array(
+		'shared' => true,
+	),
+
 	// Bind the filesystem boundary to its WP_Filesystem-backed implementation.
 	// Tests construct Webhook_Logger directly with an in-memory fake instead
 	// of going through DI — this rule is for production only.

@@ -21,6 +21,26 @@ if ( ! defined( 'KARKINOS_GH_WEBHOOK_SECRET' ) ) {
 	define( 'KARKINOS_GH_WEBHOOK_SECRET', 'phpunit-webhook-secret' );
 }
 
+// Dispatch-side config. The Karkinos URLs are overridden to fixed test hosts so
+// Forward_Target resolves without a saved local_server_ip; the actual HTTP is
+// stubbed via the pre_http_request filter, so the cert path only needs to exist
+// (is_readable), never to be a real cert.
+if ( ! defined( 'KARKINOS_DISPATCH_SECRET' ) ) {
+	define( 'KARKINOS_DISPATCH_SECRET', 'phpunit-dispatch-secret' );
+}
+if ( ! defined( 'KARKINOS_DISPATCH_CA' ) ) {
+	define( 'KARKINOS_DISPATCH_CA', __DIR__ . '/fixtures/karkinos-ca.pem' );
+}
+if ( ! defined( 'KARKINOS_DISPATCH_URL' ) ) {
+	define( 'KARKINOS_DISPATCH_URL', 'https://karkinos.test/dispatch' );
+}
+if ( ! defined( 'KARKINOS_CAPACITY_URL' ) ) {
+	define( 'KARKINOS_CAPACITY_URL', 'https://karkinos.test/dispatch/capacity' );
+}
+if ( ! defined( 'KARKINOS_GH_API_TOKEN' ) ) {
+	define( 'KARKINOS_GH_API_TOKEN', 'phpunit-gh-token' );
+}
+
 tests_add_filter(
 	'muplugins_loaded',
 	static function (): void {
