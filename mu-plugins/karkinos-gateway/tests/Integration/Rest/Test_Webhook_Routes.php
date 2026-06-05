@@ -156,6 +156,20 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
 	}
 
+	/** @testdox A [karkinos]-prefixed label not in the trigger set is not queued */
+	public function test_unknown_karkinos_label_not_queued(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body     = $this->event_body( 'octocat', '[karkinos] Bogus' );
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
 	/** @testdox The gate decision is recorded in the log */
 	public function test_gate_decision_is_logged(): void {
 		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );

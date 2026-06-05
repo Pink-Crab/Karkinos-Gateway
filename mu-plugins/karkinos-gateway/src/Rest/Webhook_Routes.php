@@ -46,13 +46,27 @@ class Webhook_Routes extends Route_Controller {
 	private const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 	/**
-	 * Karkinos routines are triggered by adding a label whose name starts with
-	 * this prefix (e.g. "[karkinos] Reviewer"). Only `issues`/`labeled` events
-	 * carrying such a label are forwarded; everything else from an authorised
-	 * actor is logged but dropped. The routine itself is the suffix — Karkinos
-	 * reads the full label from the payload.
+	 * Exact set of labels that trigger a Karkinos routine. Adding one of these
+	 * to an issue (action `labeled`) by an authorised actor is the only thing
+	 * forwarded; any other event or label — including a `[karkinos]`-prefixed
+	 * label not in this list — is logged but dropped. Karkinos reads which
+	 * routine to run from the label in the payload.
+	 *
+	 * @var list<string>
 	 */
-	private const KARKINOS_TAG_PREFIX = '[karkinos] ';
+	private const KARKINOS_TRIGGER_LABELS = array(
+		'[karkinos] Abort',
+		'[karkinos] Builder',
+		'[karkinos] Designer',
+		'[karkinos] Guardian',
+		'[karkinos] Pause',
+		'[karkinos] Planner',
+		'[karkinos] PlannerReview',
+		'[karkinos] ProjectBriefing',
+		'[karkinos] Reviewer',
+		'[karkinos] ReviewFixer',
+		'[karkinos] Triage',
+	);
 
 	/**
 	 * Constructor.
@@ -285,8 +299,9 @@ class Webhook_Routes extends Route_Controller {
 	 * Is this delivery a Karkinos routine trigger?
 	 *
 	 * True only for an `issues` event with action `labeled` where the label
-	 * just added (`payload.label.name`) starts with the Karkinos prefix. The
-	 * prefix match is case-insensitive; the routine name is the remainder.
+	 * just added (`payload.label.name`) is one of KARKINOS_TRIGGER_LABELS.
+	 * The match is case-insensitive but otherwise exact — a `[karkinos]`
+	 * label that isn't in the list does not trigger.
 	 *
 	 * @param string               $event   X-GitHub-Event header.
 	 * @param array<string, mixed> $payload Parsed, verified payload.
@@ -303,8 +318,18 @@ class Webhook_Routes extends Route_Controller {
 		}
 
 		$label = $payload['label']['name'] ?? null;
+		if ( ! is_string( $label ) ) {
+			return false;
+		}
 
-		return is_string( $label ) && 0 === stripos( $label, self::KARKINOS_TAG_PREFIX );
+		$needle = strtolower( $label );
+		foreach ( self::KARKINOS_TRIGGER_LABELS as $allowed ) {
+			if ( strtolower( $allowed ) === $needle ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
