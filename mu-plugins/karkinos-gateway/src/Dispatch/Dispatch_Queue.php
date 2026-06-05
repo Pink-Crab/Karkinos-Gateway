@@ -182,6 +182,60 @@ class Dispatch_Queue {
 	}
 
 	/**
+	 * Total number of jobs in the table, any state.
+	 *
+	 * @return int
+	 */
+	public function count_all(): int {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', $this->table() ) );
+	}
+
+	/**
+	 * A page of jobs, most recent first (by id). For the admin queue viewer.
+	 *
+	 * @param int $per_page Rows per page (min 1).
+	 * @param int $offset   Zero-based row offset.
+	 *
+	 * @return list<Dispatch_Job>
+	 */
+	public function recent( int $per_page, int $offset ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * FROM %i ORDER BY id DESC LIMIT %d OFFSET %d',
+				$this->table(),
+				max( 1, $per_page ),
+				max( 0, $offset )
+			),
+			ARRAY_A
+		);
+
+		$jobs = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				if ( is_array( $row ) ) {
+					$jobs[] = Dispatch_Job::from_row( $row );
+				}
+			}
+		}
+		return $jobs;
+	}
+
+	/**
+	 * Delete a job by id (admin queue viewer "remove" action).
+	 *
+	 * @param int $id Job ID.
+	 *
+	 * @return bool True if a row was removed.
+	 */
+	public function delete( int $id ): bool {
+		global $wpdb;
+		$deleted = $wpdb->delete( $this->table(), array( 'id' => $id ), array( '%d' ) );
+		return false !== $deleted && $deleted > 0;
+	}
+
+	/**
 	 * Hard cap on stored text so a runaway upstream response can't bloat the
 	 * row. UTF-8 character-boundary not guaranteed (substr is byte-based) —
 	 * acceptable for log/audit text.

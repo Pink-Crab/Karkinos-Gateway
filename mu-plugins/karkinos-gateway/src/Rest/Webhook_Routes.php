@@ -46,6 +46,15 @@ class Webhook_Routes extends Route_Controller {
 	private const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 	/**
+	 * Karkinos routines are triggered by adding a label whose name starts with
+	 * this prefix (e.g. "[karkinos] Reviewer"). Only `issues`/`labeled` events
+	 * carrying such a label are forwarded; everything else from an authorised
+	 * actor is logged but dropped. The routine itself is the suffix — Karkinos
+	 * reads the full label from the payload.
+	 */
+	private const KARKINOS_TAG_PREFIX = '[karkinos] ';
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Webhook_Logger    $logger Writes one JSONL line per delivery.
@@ -202,6 +211,13 @@ class Webhook_Routes extends Route_Controller {
 			return;
 		}
 
+		// Only a Karkinos routine label triggers a forward. Any other event /
+		// label from an authorised actor is logged but not queued.
+		if ( ! $this->is_karkinos_trigger( $event, $payload ) ) {
+			$record['dispatch_reason'] = 'not_karkinos_trigger';
+			return;
+		}
+
 		$target = $this->target->url();
 		if ( '' === $target ) {
 			$record['dispatch_reason'] = 'no_target';
@@ -263,6 +279,32 @@ class Webhook_Routes extends Route_Controller {
 	private function actor_login( array $payload ): string {
 		$login = $payload['sender']['login'] ?? null;
 		return is_string( $login ) ? $login : '';
+	}
+
+	/**
+	 * Is this delivery a Karkinos routine trigger?
+	 *
+	 * True only for an `issues` event with action `labeled` where the label
+	 * just added (`payload.label.name`) starts with the Karkinos prefix. The
+	 * prefix match is case-insensitive; the routine name is the remainder.
+	 *
+	 * @param string               $event   X-GitHub-Event header.
+	 * @param array<string, mixed> $payload Parsed, verified payload.
+	 *
+	 * @return bool
+	 */
+	private function is_karkinos_trigger( string $event, array $payload ): bool {
+		if ( 'issues' !== $event ) {
+			return false;
+		}
+
+		if ( 'labeled' !== ( $payload['action'] ?? null ) ) {
+			return false;
+		}
+
+		$label = $payload['label']['name'] ?? null;
+
+		return is_string( $label ) && 0 === stripos( $label, self::KARKINOS_TAG_PREFIX );
 	}
 
 	/**
