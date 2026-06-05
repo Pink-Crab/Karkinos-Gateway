@@ -29,6 +29,7 @@ return array(
 	// Admin UI.
 	\Karkinos\Gateway\Admin\Project_Term_Form::class,
 	\Karkinos\Gateway\Admin\Dev_Asset_Media_Picker::class,
+	\Karkinos\Gateway\Admin\Webhook_Log_Page::class,
 
 	// Dispatch queue.
 	\Karkinos\Gateway\Dispatch\Migrations_Runner::class,
