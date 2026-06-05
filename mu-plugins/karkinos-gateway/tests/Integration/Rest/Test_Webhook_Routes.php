@@ -119,6 +119,43 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertSame( 0, $this->queue->pending_count() );
 	}
 
+	/** @testdox An authorised sender adding a non-Karkinos label is not queued */
+	public function test_non_karkinos_label_not_queued(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body     = $this->event_body( 'octocat', 'bug' );
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertTrue( $record['authorised'] );
+		$this->assertFalse( $record['dispatched'] );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
+	/** @testdox A non-labeled event from an authorised sender is not queued */
+	public function test_non_labeled_event_not_queued(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body = wp_json_encode(
+			array(
+				'action'     => 'opened',
+				'issue'      => array( 'number' => 7 ),
+				'repository' => array( 'full_name' => 'Pink-Crab/repo' ),
+				'sender'     => array( 'login' => 'octocat' ),
+			)
+		);
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
 	/** @testdox The gate decision is recorded in the log */
 	public function test_gate_decision_is_logged(): void {
 		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
@@ -219,17 +256,20 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Build an issues-event body with a given sender login.
+	 * Build an issues/labeled event body with a given sender and label.
+	 * Defaults to a Karkinos routine label (a forward trigger).
 	 *
 	 * @param string $sender_login Login to set as sender.
+	 * @param string $label        Label name added.
 	 *
 	 * @return string JSON body.
 	 */
-	private function event_body( string $sender_login ): string {
+	private function event_body( string $sender_login, string $label = '[karkinos] Reviewer' ): string {
 		return (string) wp_json_encode(
 			array(
-				'action'     => 'opened',
+				'action'     => 'labeled',
 				'issue'      => array( 'number' => 42 ),
+				'label'      => array( 'name' => $label ),
 				'repository' => array( 'full_name' => 'Pink-Crab/repo' ),
 				'sender'     => array( 'login' => $sender_login ),
 			)
