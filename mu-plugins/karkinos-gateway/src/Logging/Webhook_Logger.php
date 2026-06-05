@@ -32,8 +32,8 @@ class Webhook_Logger {
 	/** Permissions applied to the log directory on first creation. */
 	private const DIR_MODE = 0700;
 
-	/** Roll to a fresh file once the current day-file reaches this size (1 MiB). */
-	private const MAX_FILE_BYTES = 1048576;
+	/** Roll to a fresh file once the current day-file reaches this size (4 MiB). */
+	private const MAX_FILE_BYTES = 4194304;
 
 	/**
 	 * Constructor.

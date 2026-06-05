@@ -92,9 +92,9 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 		$logger = $this->logger();
 		$date   = gmdate( 'Y-m-d' );
 
-		// Each record JSON-encodes to > 1 MiB, so the second write sees the
+		// Each record JSON-encodes to > 4 MiB, so the second write sees the
 		// first file already over the cap and rolls to a second file.
-		$big = str_repeat( 'x', 1_100_000 );
+		$big = str_repeat( 'x', 4_300_000 );
 		$logger->log( array( 'big' => $big ) );
 		$logger->log( array( 'big' => $big ) );
 
