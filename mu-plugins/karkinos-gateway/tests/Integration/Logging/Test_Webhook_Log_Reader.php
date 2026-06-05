@@ -85,19 +85,46 @@ class Test_Webhook_Log_Reader extends WP_UnitTestCase {
 		$this->assertSame( 'first', $records[2]['ts'] );
 	}
 
-	/** @testdox read honours the limit (keeping the newest) */
-	public function test_read_limit(): void {
+	/** @testdox page slices newest-first and reports paging metadata */
+	public function test_page_slices_and_reports_meta(): void {
 		$rows = array();
 		for ( $i = 1; $i <= 5; $i++ ) {
 			$rows[] = array( 'ts' => (string) $i );
 		}
 		$this->write_day( '2026-06-04', '2026-06-04-eeee.jsonl', $rows );
 
-		$records = $this->reader->read( '2026-06-04', 2 );
+		$page1 = $this->reader->page( '2026-06-04', 1, 2 );
+		$this->assertSame( 5, $page1['total'] );
+		$this->assertSame( 3, $page1['total_pages'] );
+		$this->assertSame( 1, $page1['page'] );
+		$this->assertCount( 2, $page1['records'] );
+		$this->assertSame( '5', $page1['records'][0]['ts'] );
+		$this->assertSame( '4', $page1['records'][1]['ts'] );
 
-		$this->assertCount( 2, $records );
-		$this->assertSame( '5', $records[0]['ts'] );
-		$this->assertSame( '4', $records[1]['ts'] );
+		$page3 = $this->reader->page( '2026-06-04', 3, 2 );
+		$this->assertCount( 1, $page3['records'] );
+		$this->assertSame( '1', $page3['records'][0]['ts'] );
+	}
+
+	/** @testdox page clamps an out-of-range page to the last page */
+	public function test_page_clamps_out_of_range(): void {
+		$this->write_day(
+			'2026-06-04',
+			'2026-06-04-gggg.jsonl',
+			array( array( 'ts' => '1' ), array( 'ts' => '2' ), array( 'ts' => '3' ) )
+		);
+
+		$clamped = $this->reader->page( '2026-06-04', 99, 2 );
+		$this->assertSame( 2, $clamped['page'] );
+		$this->assertSame( 2, $clamped['total_pages'] );
+	}
+
+	/** @testdox page on an unknown day returns empty with sane metadata */
+	public function test_page_empty_day(): void {
+		$result = $this->reader->page( '2026-01-01', 1, 50 );
+		$this->assertSame( array(), $result['records'] );
+		$this->assertSame( 0, $result['total'] );
+		$this->assertSame( 1, $result['total_pages'] );
 	}
 
 	/** @testdox read skips malformed JSONL lines */
