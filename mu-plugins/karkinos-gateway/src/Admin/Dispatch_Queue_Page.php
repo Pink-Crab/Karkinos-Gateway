@@ -25,8 +25,8 @@ class Dispatch_Queue_Page extends Menu_Page {
 	/** Nonce action for the remove form. */
 	private const REMOVE_NONCE = 'kg_dispatch_queue_remove';
 
-	/** @var ?string Sits under Settings. */
-	protected ?string $parent_slug = 'options-general.php';
+	/** @var ?string null = a top-level main menu item. */
+	protected ?string $parent_slug = null;
 
 	/** @var string Menu slug / ?page= value. */
 	protected string $page_slug = 'karkinos-dispatch-queue';
@@ -72,6 +72,7 @@ class Dispatch_Queue_Page extends Menu_Page {
 
 		$this->view_data = array(
 			'page_slug'    => $this->page_slug,
+			'page_url'     => menu_page_url( $this->page_slug, false ),
 			'remove_nonce' => self::REMOVE_NONCE,
 			'jobs'         => $this->queue->recent( self::PER_PAGE, ( $page_num - 1 ) * self::PER_PAGE ),
 			'total'        => $total,
@@ -110,7 +111,7 @@ class Dispatch_Queue_Page extends Menu_Page {
 
 		$redirect = wp_get_referer();
 		if ( ! is_string( $redirect ) || '' === $redirect ) {
-			$redirect = admin_url( 'options-general.php?page=' . $this->page_slug );
+			$redirect = menu_page_url( $this->page_slug, false );
 		}
 
 		wp_safe_redirect( $redirect );

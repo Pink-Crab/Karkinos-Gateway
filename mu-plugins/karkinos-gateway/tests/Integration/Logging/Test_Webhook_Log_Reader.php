@@ -127,6 +127,37 @@ class Test_Webhook_Log_Reader extends WP_UnitTestCase {
 		$this->assertSame( 1, $result['total_pages'] );
 	}
 
+	/** @testdox a day spanning multiple files is joined, newest line first */
+	public function test_multi_file_day_is_joined(): void {
+		$dir = (string) $this->config->path( 'webhook_logs' );
+		file_put_contents(
+			$dir . '/2026-06-07-aaaa.jsonl',
+			wp_json_encode( array( 'ts' => '1' ) ) . "\n" . wp_json_encode( array( 'ts' => '2' ) ) . "\n"
+		);
+		file_put_contents(
+			$dir . '/2026-06-07-bbbb.jsonl',
+			wp_json_encode( array( 'ts' => '3' ) ) . "\n" . wp_json_encode( array( 'ts' => '4' ) ) . "\n"
+		);
+
+		$option              = $this->config->additional( 'webhook_log_files_option' );
+		$map                 = get_option( $option, array() );
+		$map                 = is_array( $map ) ? $map : array();
+		$map['2026-06-07']   = array( '2026-06-07-aaaa.jsonl', '2026-06-07-bbbb.jsonl' );
+		update_option( $option, $map );
+
+		$records = $this->reader->read( '2026-06-07' );
+		$this->assertCount( 4, $records );
+		// Oldest-first across files is [1,2,3,4]; reversed => newest first.
+		$this->assertSame( '4', $records[0]['ts'] );
+		$this->assertSame( '1', $records[3]['ts'] );
+
+		$this->assertContains( '2026-06-07', $this->reader->days() );
+
+		$page = $this->reader->page( '2026-06-07', 1, 2 );
+		$this->assertSame( 4, $page['total'] );
+		$this->assertSame( '4', $page['records'][0]['ts'] );
+	}
+
 	/** @testdox read skips malformed JSONL lines */
 	public function test_read_skips_malformed(): void {
 		$dir  = (string) $this->config->path( 'webhook_logs' );

@@ -6,6 +6,7 @@
  * values are escaped on output.
  *
  * @var string                                          $page_slug    Menu slug.
+ * @var string                                          $page_url     Base URL of this admin page.
  * @var string                                          $remove_nonce Nonce action for the remove form.
  * @var list<\Karkinos\Gateway\Dispatch\Dispatch_Job>   $jobs         Jobs on the current page, newest first.
  * @var int                                             $total        Total jobs.
@@ -32,7 +33,7 @@ declare(strict_types=1);
 		$kg_to   = min( $page * $per_page, $total );
 		$kg_nav  = paginate_links(
 			array(
-				'base'      => admin_url( 'options-general.php' ) . '?page=' . rawurlencode( $page_slug ) . '&kg_page=%#%',
+				'base'      => $page_url . '&kg_page=%#%',
 				'format'    => '',
 				'current'   => $page,
 				'total'     => $total_pages,

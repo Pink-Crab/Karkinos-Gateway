@@ -319,15 +319,19 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 			return array();
 		}
 
-		$filename = (string) reset( $map );
-		$path     = $this->config->path( 'webhook_logs' ) . '/' . $filename;
+		$first = reset( $map );
+		$files = is_array( $first ) ? $first : array( (string) $first );
 
-		if ( ! is_file( $path ) ) {
-			return array();
+		$lines = array();
+		foreach ( $files as $filename ) {
+			$path = $this->config->path( 'webhook_logs' ) . '/' . $filename;
+			if ( is_file( $path ) ) {
+				$contents = (string) file_get_contents( $path );
+				foreach ( array_values( array_filter( explode( "\n", $contents ) ) ) as $line ) {
+					$lines[] = $line;
+				}
+			}
 		}
-
-		$contents = (string) file_get_contents( $path );
-		$lines    = array_values( array_filter( explode( "\n", $contents ) ) );
 
 		return $lines;
 	}

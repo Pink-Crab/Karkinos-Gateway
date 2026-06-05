@@ -7,9 +7,11 @@
  * `additional[webhook_log_files_option]`. All disk I/O goes through the
  * injected File_Manager so tests can swap in an in-memory fake.
  *
- * One file per day. Filenames carry a random hex suffix so the URL can't
- * be guessed from outside; the per-day suffix is persisted in the option
- * map so deliveries on the same day share a file. The directory is
+ * Files are per-day but rolled once they pass MAX_FILE_BYTES, so a busy day
+ * spreads across several files instead of one unwieldy blob (the reader joins
+ * them). The option map holds `date => list<filename>` (newest last); the
+ * legacy `date => filename` string form is still read. Filenames carry a
+ * random hex suffix so the URL can't be guessed from outside. The directory is
  * created mode 0700 on first write with an empty `index.php` blocker.
  *
  * @package Karkinos\Gateway\Logging
@@ -29,6 +31,9 @@ class Webhook_Logger {
 
 	/** Permissions applied to the log directory on first creation. */
 	private const DIR_MODE = 0700;
+
+	/** Roll to a fresh file once the current day-file reaches this size (1 MiB). */
+	private const MAX_FILE_BYTES = 1048576;
 
 	/**
 	 * Constructor.
@@ -116,17 +121,41 @@ class Webhook_Logger {
 		$date   = gmdate( 'Y-m-d' );
 		$option = $this->option_name();
 		$map    = get_option( $option, array() );
-
 		if ( ! is_array( $map ) ) {
 			$map = array();
 		}
 
-		if ( ! isset( $map[ $date ] ) || ! is_string( $map[ $date ] ) || '' === $map[ $date ] ) {
-			$suffix       = bin2hex( random_bytes( self::FILE_SUFFIX_BYTES ) );
-			$map[ $date ] = sprintf( '%s-%s.jsonl', $date, $suffix );
+		$dir   = $this->ensure_log_dir();
+		$files = $this->normalise_list( $map[ $date ] ?? array() );
+
+		// Start a new file for the day when there isn't one yet, or the current
+		// one has grown past the cap — so no single file gets unwieldy.
+		$roll = empty( $files ) || $this->files->size( $dir . '/' . end( $files ) ) >= self::MAX_FILE_BYTES;
+
+		if ( $roll ) {
+			$files[]      = sprintf( '%s-%s.jsonl', $date, bin2hex( random_bytes( self::FILE_SUFFIX_BYTES ) ) );
+			$map[ $date ] = $files;
 			update_option( $option, $map, false );
 		}
 
-		return $this->ensure_log_dir() . '/' . $map[ $date ];
+		return $dir . '/' . end( $files );
+	}
+
+	/**
+	 * Coerce a map entry into a list of filenames, newest last. Accepts the
+	 * current list form and the legacy single-string form (pre-rotation data).
+	 *
+	 * @param mixed $value Map entry for a date.
+	 *
+	 * @return list<string>
+	 */
+	private function normalise_list( $value ): array {
+		if ( is_string( $value ) && '' !== $value ) {
+			return array( $value );
+		}
+		if ( is_array( $value ) ) {
+			return array_values( array_filter( $value, static fn( $f ): bool => is_string( $f ) && '' !== $f ) );
+		}
+		return array();
 	}
 }

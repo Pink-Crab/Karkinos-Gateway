@@ -73,4 +73,14 @@ interface File_Manager {
 	 * @return string|false File contents, or false on failure (missing/unreadable).
 	 */
 	public function get_contents( string $path ): string|false;
+
+	/**
+	 * Size of $path in bytes. Used to decide when to roll the log to a new
+	 * file. Returns 0 for a missing/unreadable file.
+	 *
+	 * @param string $path Absolute filesystem path.
+	 *
+	 * @return int Byte length, or 0.
+	 */
+	public function size( string $path ): int;
 }

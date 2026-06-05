@@ -23,8 +23,8 @@ class Webhook_Log_Page extends Menu_Page {
 	/** Records shown per page. */
 	private const PER_PAGE = 50;
 
-	/** @var ?string Sits under Settings → (this page). */
-	protected ?string $parent_slug = 'options-general.php';
+	/** @var ?string null = a top-level main menu item. */
+	protected ?string $parent_slug = null;
 
 	/** @var string Menu slug / ?page= value. */
 	protected string $page_slug = 'karkinos-webhook-log';
@@ -81,6 +81,7 @@ class Webhook_Log_Page extends Menu_Page {
 
 		$this->view_data = array(
 			'page_slug'   => $this->page_slug,
+			'page_url'    => menu_page_url( $this->page_slug, false ),
 			'days'        => $days,
 			'selected'    => $selected,
 			'records'     => $result['records'],
