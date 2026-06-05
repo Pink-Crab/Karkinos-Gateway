@@ -42,9 +42,15 @@ class Webhook_Log_Reader {
 	 */
 	public function days(): array {
 		$dates = array();
-		foreach ( $this->file_map() as $date => $filename ) {
-			if ( $this->is_valid_date( $date ) && $this->files->file_exists( $this->path_for( $filename ) ) ) {
-				$dates[] = $date;
+		foreach ( $this->file_map() as $date => $value ) {
+			if ( ! is_string( $date ) || ! $this->is_valid_date( $date ) ) {
+				continue;
+			}
+			foreach ( $this->normalise_list( $value ) as $filename ) {
+				if ( $this->files->file_exists( $this->path_for( $filename ) ) ) {
+					$dates[] = $date;
+					break;
+				}
 			}
 		}
 
@@ -72,33 +78,22 @@ class Webhook_Log_Reader {
 	 * @return list<array<string, mixed>> Records, most recent first.
 	 */
 	public function read( string $date ): array {
-		if ( ! $this->is_valid_date( $date ) ) {
-			return array();
-		}
-
-		$map = $this->file_map();
-		if ( ! isset( $map[ $date ] ) || ! is_string( $map[ $date ] ) ) {
-			return array();
-		}
-
-		$contents = $this->files->get_contents( $this->path_for( $map[ $date ] ) );
-		if ( false === $contents ) {
-			return array();
-		}
-
 		$records = array();
-		foreach ( array_filter( explode( "\n", $contents ) ) as $line ) {
+		foreach ( $this->lines( $date ) as $line ) {
 			$decoded = json_decode( $line, true );
 			if ( is_array( $decoded ) ) {
 				$records[] = $decoded;
 			}
 		}
-
-		return array_reverse( $records );
+		return $records;
 	}
 
 	/**
 	 * One page of a day's records, newest first.
+	 *
+	 * Only the lines on the requested page are JSON-decoded — the daily file
+	 * can be large (one line per delivery, full payload), so decoding the
+	 * whole thing per page view would exhaust memory.
 	 *
 	 * @param string $date     YYYY-MM-DD.
 	 * @param int    $page     1-based page number (clamped into range).
@@ -107,14 +102,22 @@ class Webhook_Log_Reader {
 	 * @return array{records: list<array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}
 	 */
 	public function page( string $date, int $page, int $per_page ): array {
-		$all         = $this->read( $date );
-		$total       = count( $all );
+		$lines       = $this->lines( $date );
+		$total       = count( $lines );
 		$per_page    = max( 1, $per_page );
 		$total_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 1;
 		$page        = max( 1, min( $page, $total_pages ) );
 
+		$records = array();
+		foreach ( array_slice( $lines, ( $page - 1 ) * $per_page, $per_page ) as $line ) {
+			$decoded = json_decode( $line, true );
+			if ( is_array( $decoded ) ) {
+				$records[] = $decoded;
+			}
+		}
+
 		return array(
-			'records'     => array_slice( $all, ( $page - 1 ) * $per_page, $per_page ),
+			'records'     => $records,
 			'total'       => $total,
 			'page'        => $page,
 			'per_page'    => $per_page,
@@ -123,23 +126,66 @@ class Webhook_Log_Reader {
 	}
 
 	/**
-	 * The date->filename map from the option, always an array.
+	 * Raw non-empty log lines for a day, newest first (not decoded).
 	 *
-	 * @return array<string, string>
+	 * @param string $date YYYY-MM-DD. Must be a key in the file map.
+	 *
+	 * @return list<string>
 	 */
-	private function file_map(): array {
-		$map = get_option( (string) $this->app_config->additional( 'webhook_log_files_option' ), array() );
-		if ( ! is_array( $map ) ) {
+	private function lines( string $date ): array {
+		if ( ! $this->is_valid_date( $date ) ) {
 			return array();
 		}
 
-		$clean = array();
-		foreach ( $map as $date => $filename ) {
-			if ( is_string( $date ) && is_string( $filename ) && '' !== $filename ) {
-				$clean[ $date ] = $filename;
+		$map   = $this->file_map();
+		$files = $this->normalise_list( $map[ $date ] ?? array() );
+
+		$lines = array();
+		foreach ( $files as $filename ) {
+			$contents = $this->files->get_contents( $this->path_for( $filename ) );
+			if ( false === $contents ) {
+				continue;
+			}
+			foreach ( explode( "\n", $contents ) as $line ) {
+				if ( '' !== $line ) {
+					$lines[] = $line;
+				}
 			}
 		}
-		return $clean;
+
+		// Files + lines are stored oldest-first; reverse for newest-first
+		// across the whole day's set.
+		return array_reverse( $lines );
+	}
+
+	/**
+	 * Coerce a map entry into a list of filenames, newest last. Accepts the
+	 * current list form and the legacy single-string form (pre-rotation data).
+	 *
+	 * @param mixed $value Map entry for a date.
+	 *
+	 * @return list<string>
+	 */
+	private function normalise_list( $value ): array {
+		if ( is_string( $value ) && '' !== $value ) {
+			return array( $value );
+		}
+		if ( is_array( $value ) ) {
+			return array_values( array_filter( $value, static fn( $f ): bool => is_string( $f ) && '' !== $f ) );
+		}
+		return array();
+	}
+
+	/**
+	 * The raw date->files map from the option, always an array. Values may be
+	 * a list of filenames (current) or a single filename string (legacy) —
+	 * callers run them through normalise_list().
+	 *
+	 * @return array<array-key, mixed>
+	 */
+	private function file_map(): array {
+		$map = get_option( (string) $this->app_config->additional( 'webhook_log_files_option' ), array() );
+		return is_array( $map ) ? $map : array();
 	}
 
 	/**

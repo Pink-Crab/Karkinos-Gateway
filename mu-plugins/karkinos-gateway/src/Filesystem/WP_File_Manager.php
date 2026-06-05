@@ -72,6 +72,15 @@ class WP_File_Manager implements File_Manager {
 		return $fs->get_contents( $path );
 	}
 
+	public function size( string $path ): int {
+		$fs = $this->fs();
+		if ( $fs instanceof WP_Filesystem_Base ) {
+			$size = $fs->size( $path );
+			return is_int( $size ) ? max( 0, $size ) : 0;
+		}
+		return file_exists( $path ) ? (int) filesize( $path ) : 0;
+	}
+
 	/**
 	 * Boot WP_Filesystem on first use and cache the instance. Returns null
 	 * if the boot failed — callers handle that as an I/O failure.

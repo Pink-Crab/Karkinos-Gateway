@@ -54,6 +54,18 @@ class Webhook_Routes extends Route_Controller {
 	 *
 	 * @var list<string>
 	 */
+	/**
+	 * High-volume CI events that are acknowledged (202) but neither logged nor
+	 * forwarded — per-job / per-check chatter we never act on. `workflow_run`
+	 * is deliberately NOT here: it's the useful "a whole workflow finished"
+	 * signal, so it's still logged. Best avoided at source by not subscribing
+	 * the webhook to them.
+	 *
+	 * @var list<string>
+	 */
+	private const UNLOGGED_EVENTS = array( 'workflow_job', 'check_suite', 'check_run' );
+
+	/** @var list<string> */
 	private const KARKINOS_TRIGGER_LABELS = array(
 		'[karkinos] Abort',
 		'[karkinos] Builder',
@@ -157,6 +169,29 @@ class Webhook_Routes extends Route_Controller {
 			);
 		}
 
+		// GitHub setup ping — acknowledge with pong. Not logged (handshake noise).
+		if ( 'ping' === $event ) {
+			return new WP_REST_Response(
+				array(
+					'ok'   => true,
+					'pong' => true,
+				),
+				200
+			);
+		}
+
+		// High-volume CI chatter we never act on — acknowledge but don't parse,
+		// log, or forward.
+		if ( in_array( $event, self::UNLOGGED_EVENTS, true ) ) {
+			return new WP_REST_Response(
+				array(
+					'ok'       => true,
+					'delivery' => $delivery,
+				),
+				202
+			);
+		}
+
 		$payload = json_decode( $raw_body, true );
 		if ( ! is_array( $payload ) ) {
 			$payload = array();
@@ -169,18 +204,6 @@ class Webhook_Routes extends Route_Controller {
 			$record['repo'] = $payload['repository']['full_name'];
 		}
 		$record['payload'] = $payload;
-
-		// GitHub setup ping — acknowledge locally, never forward.
-		if ( 'ping' === $event ) {
-			$this->logger->log( $record );
-			return new WP_REST_Response(
-				array(
-					'ok'   => true,
-					'pong' => true,
-				),
-				200
-			);
-		}
 
 		$actor           = $this->actor_login( $payload );
 		$record['actor'] = '' !== $actor ? $actor : null;

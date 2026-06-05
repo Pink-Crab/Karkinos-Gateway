@@ -240,14 +240,56 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 
 	/** @testdox Valid-signature log records the parsed payload in full */
 	public function test_valid_signature_log_includes_payload(): void {
-		$body = wp_json_encode( array( 'zen' => 'verified content' ) );
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+		$body = $this->event_body( 'octocat' );
 
-		$this->dispatch( 'ping', $body, $this->sign( $body ) );
+		$this->dispatch( 'issues', $body, $this->sign( $body ) );
 
 		$record = json_decode( $this->read_log_lines()[0], true );
 
 		$this->assertTrue( $record['signature_valid'] );
-		$this->assertSame( array( 'zen' => 'verified content' ), $record['payload'] );
+		$this->assertSame( 'octocat', $record['payload']['sender']['login'] );
+	}
+
+	/** @testdox A valid ping is acknowledged but not written to the log */
+	public function test_valid_ping_is_not_logged(): void {
+		$body = wp_json_encode( array( 'zen' => 'handshake' ) );
+
+		$response = $this->dispatch( 'ping', $body, $this->sign( $body ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertEmpty( $this->read_log_lines(), 'A verified ping must not be logged.' );
+	}
+
+	/** @testdox Noisy CI events (check_run/check_suite/workflow_job) are acked but not logged */
+	public function test_ignored_ci_events_not_logged(): void {
+		foreach ( array( 'check_run', 'check_suite', 'workflow_job' ) as $event ) {
+			$body     = wp_json_encode( array( 'action' => 'completed' ) );
+			$response = $this->dispatch( $event, $body, $this->sign( $body ) );
+			$this->assertSame( 202, $response->get_status() );
+		}
+
+		$this->assertEmpty( $this->read_log_lines(), 'CI chatter must not be logged.' );
+	}
+
+	/** @testdox workflow_run is still logged (kept) but never dispatched */
+	public function test_workflow_run_is_logged_not_dispatched(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+		$body = wp_json_encode(
+			array(
+				'action' => 'completed',
+				'sender' => array( 'login' => 'octocat' ),
+			)
+		);
+
+		$response = $this->dispatch( 'workflow_run', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'workflow_run', $record['event'] );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
 	}
 
 	/** @testdox A request body larger than the cap is rejected with 413 and never logged */
@@ -319,15 +361,19 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 			return array();
 		}
 
-		$filename = (string) reset( $map );
-		$path     = $this->config->path( 'webhook_logs' ) . '/' . $filename;
+		$first = reset( $map );
+		$files = is_array( $first ) ? $first : array( (string) $first );
 
-		if ( ! is_file( $path ) ) {
-			return array();
+		$lines = array();
+		foreach ( $files as $filename ) {
+			$path = $this->config->path( 'webhook_logs' ) . '/' . $filename;
+			if ( is_file( $path ) ) {
+				$contents = (string) file_get_contents( $path );
+				foreach ( array_values( array_filter( explode( "\n", $contents ) ) ) as $line ) {
+					$lines[] = $line;
+				}
+			}
 		}
-
-		$contents = (string) file_get_contents( $path );
-		$lines    = array_values( array_filter( explode( "\n", $contents ) ) );
 
 		return $lines;
 	}

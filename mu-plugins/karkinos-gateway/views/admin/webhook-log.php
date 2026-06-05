@@ -5,7 +5,8 @@
  * Rendered by Webhook_Log_Page via the Perique View engine. `$this` is the
  * View, not the page. All values are escaped on output.
  *
- * @var string                        $page_slug   Menu slug, for day links.
+ * @var string                        $page_slug   Menu slug.
+ * @var string                        $page_url    Base URL of this admin page.
  * @var list<string>                  $days        Available days (YYYY-MM-DD), newest first.
  * @var string                        $selected    Currently selected day.
  * @var list<array<string, mixed>>    $records     Records on the current page, newest first.
@@ -39,15 +40,7 @@ $kg_yn = static function ( $value ): string {
 		<p>
 			<strong><?php esc_html_e( 'Day:', 'karkinos-gateway' ); ?></strong>
 			<?php foreach ( $days as $day ) : ?>
-				<?php
-				$kg_url = add_query_arg(
-					array(
-						'page'    => $page_slug,
-						'kg_date' => $day,
-					),
-					admin_url( 'options-general.php' )
-				);
-				?>
+				<?php $kg_url = add_query_arg( 'kg_date', $day, $page_url ); ?>
 				<a
 					href="<?php echo esc_url( $kg_url ); ?>"
 					class="<?php echo $day === $selected ? 'current' : ''; ?>"
@@ -61,10 +54,7 @@ $kg_yn = static function ( $value ): string {
 		$kg_to   = min( $page * $per_page, $total );
 		$kg_nav  = paginate_links(
 			array(
-				'base'      => admin_url( 'options-general.php' )
-					. '?page=' . rawurlencode( $page_slug )
-					. '&kg_date=' . rawurlencode( $selected )
-					. '&kg_page=%#%',
+				'base'      => add_query_arg( 'kg_date', $selected, $page_url ) . '&kg_page=%#%',
 				'format'    => '',
 				'current'   => $page,
 				'total'     => $total_pages,

@@ -50,6 +50,10 @@ class Memory_File_Manager implements File_Manager {
 		return $this->files[ $path ] ?? false;
 	}
 
+	public function size( string $path ): int {
+		return isset( $this->files[ $path ] ) ? strlen( $this->files[ $path ] ) : 0;
+	}
+
 	/**
 	 * Snapshot of every directory the SUT has created. Useful when asserting
 	 * a directory was mkdir'd without caring about file contents.

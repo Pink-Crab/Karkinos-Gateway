@@ -79,10 +79,29 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 
 		$date = gmdate( 'Y-m-d' );
 		$this->assertArrayHasKey( $date, $map );
+		$this->assertIsArray( $map[ $date ] );
+		$this->assertCount( 1, $map[ $date ] );
 		$this->assertMatchesRegularExpression(
 			'/^' . preg_quote( $date, '/' ) . '-[a-f0-9]{12}\.jsonl$/',
-			$map[ $date ]
+			$map[ $date ][0]
 		);
+	}
+
+	/** @testdox The day file rolls to a new file once it passes the size cap */
+	public function test_rolls_to_new_file_past_size_cap(): void {
+		$logger = $this->logger();
+		$date   = gmdate( 'Y-m-d' );
+
+		// Each record JSON-encodes to > 4 MiB, so the second write sees the
+		// first file already over the cap and rolls to a second file.
+		$big = str_repeat( 'x', 4_300_000 );
+		$logger->log( array( 'big' => $big ) );
+		$logger->log( array( 'big' => $big ) );
+
+		$map = get_option( $this->config->additional( 'webhook_log_files_option' ) );
+		$this->assertIsArray( $map[ $date ] );
+		$this->assertCount( 2, $map[ $date ], 'Expected the day to span two files after exceeding the cap.' );
+		$this->assertNotSame( $map[ $date ][0], $map[ $date ][1] );
 	}
 
 	/** @testdox The filename map option is NOT autoloaded */
@@ -131,7 +150,9 @@ class Test_Webhook_Logger extends WP_UnitTestCase {
 	}
 
 	private function todays_log_path(): string {
-		$map = get_option( $this->config->additional( 'webhook_log_files_option' ) );
-		return $this->log_dir . '/' . $map[ gmdate( 'Y-m-d' ) ];
+		$map   = get_option( $this->config->additional( 'webhook_log_files_option' ) );
+		$files = $map[ gmdate( 'Y-m-d' ) ];
+		$last  = is_array( $files ) ? end( $files ) : $files;
+		return $this->log_dir . '/' . $last;
 	}
 }
