@@ -147,6 +147,33 @@ class Test_Dispatch_Queue extends WP_UnitTestCase {
 		$this->assertSame( 1, $this->queue->pending_count() );
 	}
 
+	/** @testdox count_all + recent page over every job, newest id first */
+	public function test_count_all_and_recent(): void {
+		$a = $this->queue->enqueue( array( 'payload' => '{"n":1}' ) );
+		$b = $this->queue->enqueue( array( 'payload' => '{"n":2}' ) );
+		$c = $this->queue->enqueue( array( 'payload' => '{"n":3}' ) );
+
+		$this->assertSame( 3, $this->queue->count_all() );
+
+		$recent = $this->queue->recent( 2, 0 );
+		$this->assertCount( 2, $recent );
+		$this->assertSame( $c, $recent[0]->id );
+		$this->assertSame( $b, $recent[1]->id );
+
+		$next = $this->queue->recent( 2, 2 );
+		$this->assertCount( 1, $next );
+		$this->assertSame( $a, $next[0]->id );
+	}
+
+	/** @testdox delete removes a job and reports success */
+	public function test_delete(): void {
+		$id = $this->queue->enqueue( array( 'payload' => '{}' ) );
+
+		$this->assertTrue( $this->queue->delete( $id ) );
+		$this->assertNull( $this->queue->find( $id ) );
+		$this->assertFalse( $this->queue->delete( $id ) );
+	}
+
 	/** @testdox find returns null for unknown ids */
 	public function test_find_returns_null_for_missing_id(): void {
 		$this->assertNull( $this->queue->find( 999999 ) );

@@ -46,6 +46,29 @@ class Webhook_Routes extends Route_Controller {
 	private const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 	/**
+	 * Exact set of labels that trigger a Karkinos routine. Adding one of these
+	 * to an issue (action `labeled`) by an authorised actor is the only thing
+	 * forwarded; any other event or label — including a `[karkinos]`-prefixed
+	 * label not in this list — is logged but dropped. Karkinos reads which
+	 * routine to run from the label in the payload.
+	 *
+	 * @var list<string>
+	 */
+	private const KARKINOS_TRIGGER_LABELS = array(
+		'[karkinos] Abort',
+		'[karkinos] Builder',
+		'[karkinos] Designer',
+		'[karkinos] Guardian',
+		'[karkinos] Pause',
+		'[karkinos] Planner',
+		'[karkinos] PlannerReview',
+		'[karkinos] ProjectBriefing',
+		'[karkinos] Reviewer',
+		'[karkinos] ReviewFixer',
+		'[karkinos] Triage',
+	);
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Webhook_Logger    $logger Writes one JSONL line per delivery.
@@ -202,6 +225,13 @@ class Webhook_Routes extends Route_Controller {
 			return;
 		}
 
+		// Only a Karkinos routine label triggers a forward. Any other event /
+		// label from an authorised actor is logged but not queued.
+		if ( ! $this->is_karkinos_trigger( $event, $payload ) ) {
+			$record['dispatch_reason'] = 'not_karkinos_trigger';
+			return;
+		}
+
 		$target = $this->target->url();
 		if ( '' === $target ) {
 			$record['dispatch_reason'] = 'no_target';
@@ -263,6 +293,43 @@ class Webhook_Routes extends Route_Controller {
 	private function actor_login( array $payload ): string {
 		$login = $payload['sender']['login'] ?? null;
 		return is_string( $login ) ? $login : '';
+	}
+
+	/**
+	 * Is this delivery a Karkinos routine trigger?
+	 *
+	 * True only for an `issues` event with action `labeled` where the label
+	 * just added (`payload.label.name`) is one of KARKINOS_TRIGGER_LABELS.
+	 * The match is case-insensitive but otherwise exact — a `[karkinos]`
+	 * label that isn't in the list does not trigger.
+	 *
+	 * @param string               $event   X-GitHub-Event header.
+	 * @param array<string, mixed> $payload Parsed, verified payload.
+	 *
+	 * @return bool
+	 */
+	private function is_karkinos_trigger( string $event, array $payload ): bool {
+		if ( 'issues' !== $event ) {
+			return false;
+		}
+
+		if ( 'labeled' !== ( $payload['action'] ?? null ) ) {
+			return false;
+		}
+
+		$label = $payload['label']['name'] ?? null;
+		if ( ! is_string( $label ) ) {
+			return false;
+		}
+
+		$needle = strtolower( $label );
+		foreach ( self::KARKINOS_TRIGGER_LABELS as $allowed ) {
+			if ( strtolower( $allowed ) === $needle ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
