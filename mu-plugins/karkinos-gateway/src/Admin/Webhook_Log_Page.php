@@ -20,8 +20,8 @@ use PinkCrab\Perique_Admin_Menu\Page\Page;
 
 class Webhook_Log_Page extends Menu_Page {
 
-	/** Max records rendered for one day. */
-	private const RECORD_LIMIT = 500;
+	/** Records shown per page. */
+	private const PER_PAGE = 50;
 
 	/** @var ?string Sits under Settings → (this page). */
 	protected ?string $parent_slug = 'options-general.php';
@@ -61,16 +61,33 @@ class Webhook_Log_Page extends Menu_Page {
 
 		$days = $this->reader->days();
 
-		// Read-only display filter, capability-gated — no state change, no nonce.
+		// Read-only display filters, capability-gated — no state change, no nonce.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$requested = isset( $_GET['kg_date'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['kg_date'] ) ) : '';
-		$selected  = in_array( $requested, $days, true ) ? $requested : ( $days[0] ?? '' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page_num = isset( $_GET['kg_page'] ) ? max( 1, (int) $_GET['kg_page'] ) : 1;
+
+		$selected = in_array( $requested, $days, true ) ? $requested : ( $days[0] ?? '' );
+
+		$result = '' !== $selected
+			? $this->reader->page( $selected, $page_num, self::PER_PAGE )
+			: array(
+				'records'     => array(),
+				'total'       => 0,
+				'page'        => 1,
+				'per_page'    => self::PER_PAGE,
+				'total_pages' => 1,
+			);
 
 		$this->view_data = array(
-			'page_slug' => $this->page_slug,
-			'days'      => $days,
-			'selected'  => $selected,
-			'records'   => '' !== $selected ? $this->reader->read( $selected, self::RECORD_LIMIT ) : array(),
+			'page_slug'   => $this->page_slug,
+			'days'        => $days,
+			'selected'    => $selected,
+			'records'     => $result['records'],
+			'total'       => $result['total'],
+			'page'        => $result['page'],
+			'per_page'    => $result['per_page'],
+			'total_pages' => $result['total_pages'],
 		);
 	}
 }

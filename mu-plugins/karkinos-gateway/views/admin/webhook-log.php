@@ -5,10 +5,14 @@
  * Rendered by Webhook_Log_Page via the Perique View engine. `$this` is the
  * View, not the page. All values are escaped on output.
  *
- * @var string                        $page_slug Menu slug, for day links.
- * @var list<string>                  $days      Available days (YYYY-MM-DD), newest first.
- * @var string                        $selected  Currently selected day.
- * @var list<array<string, mixed>>    $records   Records for the selected day, newest first.
+ * @var string                        $page_slug   Menu slug, for day links.
+ * @var list<string>                  $days        Available days (YYYY-MM-DD), newest first.
+ * @var string                        $selected    Currently selected day.
+ * @var list<array<string, mixed>>    $records     Records on the current page, newest first.
+ * @var int                           $total       Total records for the selected day.
+ * @var int                           $page        Current page (1-based).
+ * @var int                           $per_page    Records per page.
+ * @var int                           $total_pages Number of pages.
  *
  * @package Karkinos\Gateway
  */
@@ -52,16 +56,39 @@ $kg_yn = static function ( $value ): string {
 			<?php endforeach; ?>
 		</p>
 
+		<?php
+		$kg_from = $total > 0 ? ( ( $page - 1 ) * $per_page ) + 1 : 0;
+		$kg_to   = min( $page * $per_page, $total );
+		$kg_nav  = paginate_links(
+			array(
+				'base'      => admin_url( 'options-general.php' )
+					. '?page=' . rawurlencode( $page_slug )
+					. '&kg_date=' . rawurlencode( $selected )
+					. '&kg_page=%#%',
+				'format'    => '',
+				'current'   => $page,
+				'total'     => $total_pages,
+				'prev_text' => __( '‹ Newer', 'karkinos-gateway' ),
+				'next_text' => __( 'Older ›', 'karkinos-gateway' ),
+			)
+		);
+		?>
 		<p class="description">
 			<?php
 			printf(
-				/* translators: 1: number of records, 2: selected date. */
-				esc_html__( 'Showing %1$d delivery(ies) for %2$s, newest first.', 'karkinos-gateway' ),
-				count( $records ),
+				/* translators: 1: first record number, 2: last record number, 3: total records, 4: selected date. */
+				esc_html__( 'Showing %1$d–%2$d of %3$d deliveries for %4$s, newest first.', 'karkinos-gateway' ),
+				(int) $kg_from,
+				(int) $kg_to,
+				(int) $total,
 				esc_html( $selected )
 			);
 			?>
 		</p>
+
+		<?php if ( is_string( $kg_nav ) && '' !== $kg_nav ) : ?>
+			<div class="tablenav top"><div class="tablenav-pages"><?php echo wp_kses_post( $kg_nav ); ?></div></div>
+		<?php endif; ?>
 
 		<table class="widefat striped">
 			<thead>
@@ -105,6 +132,10 @@ $kg_yn = static function ( $value ): string {
 				<?php endif; ?>
 			</tbody>
 		</table>
+
+		<?php if ( is_string( $kg_nav ) && '' !== $kg_nav ) : ?>
+			<div class="tablenav bottom"><div class="tablenav-pages"><?php echo wp_kses_post( $kg_nav ); ?></div></div>
+		<?php endif; ?>
 
 	<?php endif; ?>
 </div>

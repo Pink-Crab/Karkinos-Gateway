@@ -21,9 +21,6 @@ use PinkCrab\Perique\Application\App_Config;
 
 class Webhook_Log_Reader {
 
-	/** Default cap on records returned for one day. */
-	private const DEFAULT_LIMIT = 500;
-
 	/**
 	 * Constructor.
 	 *
@@ -65,17 +62,16 @@ class Webhook_Log_Reader {
 	}
 
 	/**
-	 * Parsed records for a single day, newest first.
+	 * All parsed records for a single day, newest first.
 	 *
 	 * Returns an empty array for an unknown/invalid date or an unreadable file.
 	 * Malformed lines are skipped rather than aborting the whole read.
 	 *
-	 * @param string $date  YYYY-MM-DD. Must be a key in the file map.
-	 * @param int    $limit Max records to return.
+	 * @param string $date YYYY-MM-DD. Must be a key in the file map.
 	 *
 	 * @return list<array<string, mixed>> Records, most recent first.
 	 */
-	public function read( string $date, int $limit = self::DEFAULT_LIMIT ): array {
+	public function read( string $date ): array {
 		if ( ! $this->is_valid_date( $date ) ) {
 			return array();
 		}
@@ -98,8 +94,32 @@ class Webhook_Log_Reader {
 			}
 		}
 
-		// Newest first, then cap.
-		return array_slice( array_reverse( $records ), 0, max( 1, $limit ) );
+		return array_reverse( $records );
+	}
+
+	/**
+	 * One page of a day's records, newest first.
+	 *
+	 * @param string $date     YYYY-MM-DD.
+	 * @param int    $page     1-based page number (clamped into range).
+	 * @param int    $per_page Records per page (min 1).
+	 *
+	 * @return array{records: list<array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}
+	 */
+	public function page( string $date, int $page, int $per_page ): array {
+		$all         = $this->read( $date );
+		$total       = count( $all );
+		$per_page    = max( 1, $per_page );
+		$total_pages = $total > 0 ? (int) ceil( $total / $per_page ) : 1;
+		$page        = max( 1, min( $page, $total_pages ) );
+
+		return array(
+			'records'     => array_slice( $all, ( $page - 1 ) * $per_page, $per_page ),
+			'total'       => $total,
+			'page'        => $page,
+			'per_page'    => $per_page,
+			'total_pages' => $total_pages,
+		);
 	}
 
 	/**
