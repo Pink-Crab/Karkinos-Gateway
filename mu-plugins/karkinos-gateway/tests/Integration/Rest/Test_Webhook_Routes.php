@@ -240,14 +240,25 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 
 	/** @testdox Valid-signature log records the parsed payload in full */
 	public function test_valid_signature_log_includes_payload(): void {
-		$body = wp_json_encode( array( 'zen' => 'verified content' ) );
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+		$body = $this->event_body( 'octocat' );
 
-		$this->dispatch( 'ping', $body, $this->sign( $body ) );
+		$this->dispatch( 'issues', $body, $this->sign( $body ) );
 
 		$record = json_decode( $this->read_log_lines()[0], true );
 
 		$this->assertTrue( $record['signature_valid'] );
-		$this->assertSame( array( 'zen' => 'verified content' ), $record['payload'] );
+		$this->assertSame( 'octocat', $record['payload']['sender']['login'] );
+	}
+
+	/** @testdox A valid ping is acknowledged but not written to the log */
+	public function test_valid_ping_is_not_logged(): void {
+		$body = wp_json_encode( array( 'zen' => 'handshake' ) );
+
+		$response = $this->dispatch( 'ping', $body, $this->sign( $body ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertEmpty( $this->read_log_lines(), 'A verified ping must not be logged.' );
 	}
 
 	/** @testdox A request body larger than the cap is rejected with 413 and never logged */

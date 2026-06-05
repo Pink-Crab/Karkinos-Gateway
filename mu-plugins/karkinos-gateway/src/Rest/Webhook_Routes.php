@@ -170,9 +170,9 @@ class Webhook_Routes extends Route_Controller {
 		}
 		$record['payload'] = $payload;
 
-		// GitHub setup ping — acknowledge locally, never forward.
+		// GitHub setup ping — acknowledge locally. Not logged (handshake noise)
+		// and never forwarded.
 		if ( 'ping' === $event ) {
-			$this->logger->log( $record );
 			return new WP_REST_Response(
 				array(
 					'ok'   => true,
