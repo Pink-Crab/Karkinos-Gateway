@@ -261,6 +261,37 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertEmpty( $this->read_log_lines(), 'A verified ping must not be logged.' );
 	}
 
+	/** @testdox Noisy CI events (check_run/check_suite/workflow_job) are acked but not logged */
+	public function test_ignored_ci_events_not_logged(): void {
+		foreach ( array( 'check_run', 'check_suite', 'workflow_job' ) as $event ) {
+			$body     = wp_json_encode( array( 'action' => 'completed' ) );
+			$response = $this->dispatch( $event, $body, $this->sign( $body ) );
+			$this->assertSame( 202, $response->get_status() );
+		}
+
+		$this->assertEmpty( $this->read_log_lines(), 'CI chatter must not be logged.' );
+	}
+
+	/** @testdox workflow_run is still logged (kept) but never dispatched */
+	public function test_workflow_run_is_logged_not_dispatched(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+		$body = wp_json_encode(
+			array(
+				'action' => 'completed',
+				'sender' => array( 'login' => 'octocat' ),
+			)
+		);
+
+		$response = $this->dispatch( 'workflow_run', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'workflow_run', $record['event'] );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
 	/** @testdox A request body larger than the cap is rejected with 413 and never logged */
 	public function test_oversized_body_returns_413_and_skips_logging(): void {
 		// Valid JSON above the 5 MiB MAX_BODY_BYTES cap. Must parse cleanly
