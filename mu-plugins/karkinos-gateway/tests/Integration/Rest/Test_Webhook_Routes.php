@@ -292,6 +292,66 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
 	}
 
+	/** @testdox A [karkinos] label on a pull_request (authorised) is enqueued */
+	public function test_pull_request_karkinos_label_enqueues(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body = wp_json_encode(
+			array(
+				'action'       => 'labeled',
+				'label'        => array( 'name' => '[karkinos] Reviewer' ),
+				'pull_request' => array( 'number' => 5 ),
+				'repository'   => array( 'full_name' => 'Pink-Crab/repo' ),
+				'sender'       => array( 'login' => 'octocat' ),
+			)
+		);
+		$response = $this->dispatch( 'pull_request', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 1, $this->queue->pending_count() );
+	}
+
+	/** @testdox A check_suite completed for a PR is enqueued even from a bot (not actor-gated) */
+	public function test_check_suite_completed_with_pr_enqueues(): void {
+		// Empty roster + bot sender — must still forward (system event).
+		$body = wp_json_encode(
+			array(
+				'action'      => 'completed',
+				'check_suite' => array(
+					'conclusion'    => 'success',
+					'pull_requests' => array( array( 'number' => 7 ) ),
+				),
+				'repository'  => array( 'full_name' => 'Pink-Crab/repo' ),
+				'sender'      => array( 'login' => 'github-actions[bot]' ),
+			)
+		);
+		$response = $this->dispatch( 'check_suite', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 1, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'check_suite', $record['event'] );
+		$this->assertTrue( $record['dispatched'] );
+		$this->assertSame( 'enqueued', $record['dispatch_reason'] );
+	}
+
+	/** @testdox A check_suite completed with no attached PR is neither logged nor enqueued */
+	public function test_check_suite_without_pr_not_logged(): void {
+		$body = wp_json_encode(
+			array(
+				'action'      => 'completed',
+				'check_suite' => array( 'pull_requests' => array() ),
+				'repository'  => array( 'full_name' => 'Pink-Crab/repo' ),
+			)
+		);
+		$response = $this->dispatch( 'check_suite', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+		$this->assertEmpty( $this->read_log_lines() );
+	}
+
 	/** @testdox A request body larger than the cap is rejected with 413 and never logged */
 	public function test_oversized_body_returns_413_and_skips_logging(): void {
 		// Valid JSON above the 5 MiB MAX_BODY_BYTES cap. Must parse cleanly
