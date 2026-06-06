@@ -47,25 +47,12 @@ class Webhook_Routes extends Route_Controller {
 
 	/**
 	 * Exact set of labels that trigger a Karkinos routine. Adding one of these
-	 * to an issue (action `labeled`) by an authorised actor is the only thing
-	 * forwarded; any other event or label — including a `[karkinos]`-prefixed
-	 * label not in this list — is logged but dropped. Karkinos reads which
-	 * routine to run from the label in the payload.
+	 * to an issue OR pull request (action `labeled`) by an authorised actor is
+	 * forwarded; a `[karkinos]`-prefixed label not in this list is not. Karkinos
+	 * reads which routine to run from the label in the payload.
 	 *
 	 * @var list<string>
 	 */
-	/**
-	 * High-volume CI events that are acknowledged (202) but neither logged nor
-	 * forwarded — per-job / per-check chatter we never act on. `workflow_run`
-	 * is deliberately NOT here: it's the useful "a whole workflow finished"
-	 * signal, so it's still logged. Best avoided at source by not subscribing
-	 * the webhook to them.
-	 *
-	 * @var list<string>
-	 */
-	private const UNLOGGED_EVENTS = array( 'workflow_job', 'check_suite', 'check_run' );
-
-	/** @var list<string> */
 	private const KARKINOS_TRIGGER_LABELS = array(
 		'[karkinos] Abort',
 		'[karkinos] Builder',
@@ -79,6 +66,16 @@ class Webhook_Routes extends Route_Controller {
 		'[karkinos] ReviewFixer',
 		'[karkinos] Triage',
 	);
+
+	/**
+	 * Events acknowledged (202) but neither parsed, logged, nor forwarded —
+	 * per-job / per-check CI chatter we never act on. `check_suite` is NOT here:
+	 * a *completed* suite attached to a PR is a forward trigger, so check_suite
+	 * is parsed and its non-trigger actions are dropped separately.
+	 *
+	 * @var list<string>
+	 */
+	private const UNLOGGED_EVENTS = array( 'workflow_job', 'check_run' );
 
 	/**
 	 * Constructor.
@@ -205,6 +202,19 @@ class Webhook_Routes extends Route_Controller {
 		}
 		$record['payload'] = $payload;
 
+		// check_suite is only acted on when a suite COMPLETES for a PR. Its other
+		// actions (requested / rerequested / completed-without-PR) are noise —
+		// ack without logging.
+		if ( 'check_suite' === $event && ! $this->is_ci_finished_trigger( $event, $payload ) ) {
+			return new WP_REST_Response(
+				array(
+					'ok'       => true,
+					'delivery' => $delivery,
+				),
+				202
+			);
+		}
+
 		$actor           = $this->actor_login( $payload );
 		$record['actor'] = '' !== $actor ? $actor : null;
 
@@ -234,25 +244,33 @@ class Webhook_Routes extends Route_Controller {
 	 * @return void
 	 */
 	private function gate_and_dispatch( string $event, string $delivery, string $actor, array $payload, array &$record ): void {
-		if ( '' === $actor ) {
-			$record['authorised']      = false;
-			$record['dispatch_reason'] = 'no_sender';
-			return;
-		}
+		$is_label = $this->is_label_trigger( $event, $payload );
+		$is_ci    = $this->is_ci_finished_trigger( $event, $payload );
 
-		$authorised           = $this->actors->is_authorised( $actor );
-		$record['authorised'] = $authorised;
-
-		if ( ! $authorised ) {
-			$record['dispatch_reason'] = 'unauthorised_actor';
-			return;
-		}
-
-		// Only a Karkinos routine label triggers a forward. Any other event /
-		// label from an authorised actor is logged but not queued.
-		if ( ! $this->is_karkinos_trigger( $event, $payload ) ) {
+		// Not something we forward — logged for visibility, nothing queued.
+		if ( ! $is_label && ! $is_ci ) {
 			$record['dispatch_reason'] = 'not_karkinos_trigger';
 			return;
+		}
+
+		// Label triggers are gated on the human who applied the label. A
+		// CI-finished delivery (check_suite completed for a PR) is a system
+		// event from a bot, so the PR + completion condition is the gate, not
+		// the roster.
+		if ( $is_label ) {
+			if ( '' === $actor ) {
+				$record['authorised']      = false;
+				$record['dispatch_reason'] = 'no_sender';
+				return;
+			}
+
+			$authorised           = $this->actors->is_authorised( $actor );
+			$record['authorised'] = $authorised;
+
+			if ( ! $authorised ) {
+				$record['dispatch_reason'] = 'unauthorised_actor';
+				return;
+			}
 		}
 
 		$target = $this->target->url();
@@ -319,20 +337,20 @@ class Webhook_Routes extends Route_Controller {
 	}
 
 	/**
-	 * Is this delivery a Karkinos routine trigger?
+	 * Is this delivery a Karkinos routine label trigger?
 	 *
-	 * True only for an `issues` event with action `labeled` where the label
-	 * just added (`payload.label.name`) is one of KARKINOS_TRIGGER_LABELS.
-	 * The match is case-insensitive but otherwise exact — a `[karkinos]`
-	 * label that isn't in the list does not trigger.
+	 * True only for an `issues` or `pull_request` event with action `labeled`
+	 * where the label just added (`payload.label.name`) is one of
+	 * KARKINOS_TRIGGER_LABELS. The match is case-insensitive but otherwise
+	 * exact — a `[karkinos]` label that isn't in the list does not trigger.
 	 *
 	 * @param string               $event   X-GitHub-Event header.
 	 * @param array<string, mixed> $payload Parsed, verified payload.
 	 *
 	 * @return bool
 	 */
-	private function is_karkinos_trigger( string $event, array $payload ): bool {
-		if ( 'issues' !== $event ) {
+	private function is_label_trigger( string $event, array $payload ): bool {
+		if ( 'issues' !== $event && 'pull_request' !== $event ) {
 			return false;
 		}
 
@@ -353,6 +371,32 @@ class Webhook_Routes extends Route_Controller {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Is this delivery a "PR's checks finished" signal?
+	 *
+	 * True only for a `check_suite` event with action `completed` that is
+	 * attached to at least one pull request (`check_suite.pull_requests`).
+	 * This is a system event (bot sender), so it is NOT actor-gated — Karkinos
+	 * matches the PR(s) to its own routines.
+	 *
+	 * @param string               $event   X-GitHub-Event header.
+	 * @param array<string, mixed> $payload Parsed, verified payload.
+	 *
+	 * @return bool
+	 */
+	private function is_ci_finished_trigger( string $event, array $payload ): bool {
+		if ( 'check_suite' !== $event ) {
+			return false;
+		}
+
+		if ( 'completed' !== ( $payload['action'] ?? null ) ) {
+			return false;
+		}
+
+		$prs = $payload['check_suite']['pull_requests'] ?? null;
+		return is_array( $prs ) && array() !== $prs;
 	}
 
 	/**
