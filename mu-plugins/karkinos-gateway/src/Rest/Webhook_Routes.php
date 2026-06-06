@@ -244,31 +244,34 @@ class Webhook_Routes extends Route_Controller {
 	 * @return void
 	 */
 	private function gate_and_dispatch( string $event, string $delivery, string $actor, array $payload, array &$record ): void {
-		$is_label = $this->is_label_trigger( $event, $payload );
-		$is_ci    = $this->is_ci_finished_trigger( $event, $payload );
-
-		// Not something we forward — logged for visibility, nothing queued.
-		if ( ! $is_label && ! $is_ci ) {
-			$record['dispatch_reason'] = 'not_karkinos_trigger';
-			return;
-		}
-
-		// Label triggers are gated on the human who applied the label. A
-		// CI-finished delivery (check_suite completed for a PR) is a system
+		// A CI-finished delivery (check_suite completed for a PR) is a system
 		// event from a bot, so the PR + completion condition is the gate, not
-		// the roster.
-		if ( $is_label ) {
-			if ( '' === $actor ) {
-				$record['authorised']      = false;
-				$record['dispatch_reason'] = 'no_sender';
-				return;
+		// the roster. Everything else we might forward is a labeled issue/PR,
+		// gated on the human who applied the label.
+		if ( ! $this->is_ci_finished_trigger( $event, $payload ) ) {
+			// Resolve authorisation for ANY labeled issue/PR — even one whose
+			// label isn't a trigger — so the gate decision is recorded. Other
+			// events (e.g. `opened`, `workflow_run`) carry no actor gate.
+			if ( $this->is_labeled_issue_or_pr( $event, $payload ) ) {
+				if ( '' === $actor ) {
+					$record['authorised']      = false;
+					$record['dispatch_reason'] = 'no_sender';
+					return;
+				}
+
+				$authorised           = $this->actors->is_authorised( $actor );
+				$record['authorised'] = $authorised;
+
+				if ( ! $authorised ) {
+					$record['dispatch_reason'] = 'unauthorised_actor';
+					return;
+				}
 			}
 
-			$authorised           = $this->actors->is_authorised( $actor );
-			$record['authorised'] = $authorised;
-
-			if ( ! $authorised ) {
-				$record['dispatch_reason'] = 'unauthorised_actor';
+			// Authorised (or an event we never forward) — only an exact trigger
+			// label goes on to dispatch.
+			if ( ! $this->is_label_trigger( $event, $payload ) ) {
+				$record['dispatch_reason'] = 'not_karkinos_trigger';
 				return;
 			}
 		}
@@ -350,11 +353,7 @@ class Webhook_Routes extends Route_Controller {
 	 * @return bool
 	 */
 	private function is_label_trigger( string $event, array $payload ): bool {
-		if ( 'issues' !== $event && 'pull_request' !== $event ) {
-			return false;
-		}
-
-		if ( 'labeled' !== ( $payload['action'] ?? null ) ) {
+		if ( ! $this->is_labeled_issue_or_pr( $event, $payload ) ) {
 			return false;
 		}
 
@@ -371,6 +370,26 @@ class Webhook_Routes extends Route_Controller {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Is this a `labeled` action on an issue or pull request?
+	 *
+	 * The event-level gate that precedes the exact-label check: any such
+	 * delivery is actor-gated whether or not its label is a Karkinos trigger,
+	 * so the gate decision is recorded even for plain labels.
+	 *
+	 * @param string               $event   X-GitHub-Event header.
+	 * @param array<string, mixed> $payload Parsed, verified payload.
+	 *
+	 * @return bool
+	 */
+	private function is_labeled_issue_or_pr( string $event, array $payload ): bool {
+		if ( 'issues' !== $event && 'pull_request' !== $event ) {
+			return false;
+		}
+
+		return 'labeled' === ( $payload['action'] ?? null );
 	}
 
 	/**
