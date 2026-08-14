@@ -126,9 +126,15 @@ class Dispatch_Queue {
 	public function next( array $kinds = array() ): ?Dispatch_Job {
 		global $wpdb;
 
-		$kinds = array_values( array_intersect( $kinds, Dispatch_Job::KINDS ) );
+		$kinds = array_values( array_unique( array_intersect( $kinds, Dispatch_Job::KINDS ) ) );
 
-		if ( array() === $kinds ) {
+		// Asking for every kind is the same as not filtering at all. Keeping the
+		// three queries as literals (rather than composing an IN list) is what
+		// lets each one go through $wpdb->prepare() intact.
+		$wants_karkinos = in_array( Dispatch_Job::KIND_KARKINOS, $kinds, true );
+		$wants_act      = in_array( Dispatch_Job::KIND_ACT, $kinds, true );
+
+		if ( array() === $kinds || ( $wants_karkinos && $wants_act ) ) {
 			$row = $wpdb->get_row(
 				$wpdb->prepare(
 					'SELECT * FROM %i WHERE dispatched_at IS NULL ORDER BY created_at ASC, id ASC LIMIT 1',
@@ -139,16 +145,26 @@ class Dispatch_Queue {
 			return is_array( $row ) ? Dispatch_Job::from_row( $row ) : null;
 		}
 
-		// Legacy rows predate the column and are Karkinos envelopes, so a
-		// request including that kind must also match NULL/'' rows.
-		$legacy      = in_array( Dispatch_Job::KIND_KARKINOS, $kinds, true );
-		$placeholder = implode( ', ', array_fill( 0, count( $kinds ), '%s' ) );
-		$sql         = 'SELECT * FROM %i WHERE dispatched_at IS NULL AND ( kind IN ( ' . $placeholder . ' )'
-			. ( $legacy ? " OR kind IS NULL OR kind = ''" : '' )
-			. ' ) ORDER BY created_at ASC, id ASC LIMIT 1';
+		if ( $wants_karkinos ) {
+			// Rows written before the kind column are Karkinos envelopes, so
+			// NULL/'' has to match here too.
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM %i WHERE dispatched_at IS NULL AND ( kind = %s OR kind IS NULL OR kind = '' ) ORDER BY created_at ASC, id ASC LIMIT 1",
+					$this->table(),
+					Dispatch_Job::KIND_KARKINOS
+				),
+				ARRAY_A
+			);
+			return is_array( $row ) ? Dispatch_Job::from_row( $row ) : null;
+		}
 
 		$row = $wpdb->get_row(
-			$wpdb->prepare( $sql, array_merge( array( $this->table() ), $kinds ) ),
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE dispatched_at IS NULL AND kind = %s ORDER BY created_at ASC, id ASC LIMIT 1',
+				$this->table(),
+				Dispatch_Job::KIND_ACT
+			),
 			ARRAY_A
 		);
 		return is_array( $row ) ? Dispatch_Job::from_row( $row ) : null;
