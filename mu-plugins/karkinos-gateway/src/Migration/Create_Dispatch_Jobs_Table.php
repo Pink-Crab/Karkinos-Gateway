@@ -66,6 +66,11 @@ class Create_Dispatch_Jobs_Table extends Migration {
 			->varchar( 20 )
 			->default( 'pending' );
 
+		// Which downstream protocol drains this job — see Dispatch_Job::KINDS.
+		$schema->column( 'kind' )
+			->varchar( 20 )
+			->default( 'karkinos' );
+
 		$schema->column( 'source' )
 			->varchar( 50 )
 			->default( '' );

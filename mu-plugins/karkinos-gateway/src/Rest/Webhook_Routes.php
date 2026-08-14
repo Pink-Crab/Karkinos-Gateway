@@ -23,6 +23,8 @@ declare(strict_types=1);
 namespace Karkinos\Gateway\Rest;
 
 use Karkinos\Gateway\Auth\Authorised_Actors;
+use Karkinos\Gateway\Dispatch\Act_Target;
+use Karkinos\Gateway\Dispatch\Dispatch_Job;
 use Karkinos\Gateway\Dispatch\Dispatch_Queue;
 use Karkinos\Gateway\Dispatch\Dispatch_Worker;
 use Karkinos\Gateway\Dispatch\Forward_Target;
@@ -78,20 +80,34 @@ class Webhook_Routes extends Route_Controller {
 	private const UNLOGGED_EVENTS = array( 'workflow_job', 'check_run' );
 
 	/**
+	 * Pull-request actions that queue a local Actions-tool run.
+	 *
+	 * `opened` and `reopened` cover a new PR; `synchronize` is GitHub's action
+	 * for "more commits were pushed", and its sender is the pusher — so an
+	 * outsider adding commits to their own PR is gated out like any other
+	 * unauthorised actor.
+	 *
+	 * @var list<string>
+	 */
+	private const PR_RUN_ACTIONS = array( 'opened', 'reopened', 'synchronize' );
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Webhook_Logger    $logger Writes one JSONL line per delivery.
-	 * @param Authorised_Actors $actors Roster the sender is gated against.
-	 * @param Dispatch_Queue    $queue  Where an authorised delivery is enqueued.
-	 * @param Forward_Target    $target Resolves the Karkinos dispatch URL.
-	 * @param Dispatch_Worker   $worker Drains the queue (one inline attempt on enqueue).
+	 * @param Webhook_Logger    $logger     Writes one JSONL line per delivery.
+	 * @param Authorised_Actors $actors     Roster the sender is gated against.
+	 * @param Dispatch_Queue    $queue      Where an authorised delivery is enqueued.
+	 * @param Forward_Target    $target     Resolves the Karkinos dispatch URL.
+	 * @param Dispatch_Worker   $worker     Drains the queue (one inline attempt on enqueue).
+	 * @param Act_Target        $act_target Resolves the Actions-tool URL.
 	 */
 	public function __construct(
 		private Webhook_Logger $logger,
 		private Authorised_Actors $actors,
 		private Dispatch_Queue $queue,
 		private Forward_Target $target,
-		private Dispatch_Worker $worker
+		private Dispatch_Worker $worker,
+		private Act_Target $act_target
 	) {}
 
 	/**
@@ -248,11 +264,13 @@ class Webhook_Routes extends Route_Controller {
 		// event from a bot, so the PR + completion condition is the gate, not
 		// the roster. Everything else we might forward is a labeled issue/PR,
 		// gated on the human who applied the label.
+		$pr_run = $this->is_pr_run_trigger( $event, $payload );
+
 		if ( ! $this->is_ci_finished_trigger( $event, $payload ) ) {
 			// Resolve authorisation for ANY labeled issue/PR — even one whose
-			// label isn't a trigger — so the gate decision is recorded. Other
-			// events (e.g. `opened`, `workflow_run`) carry no actor gate.
-			if ( $this->is_labeled_issue_or_pr( $event, $payload ) ) {
+			// label isn't a trigger — so the gate decision is recorded, and for
+			// every PR-run candidate. Other events carry no actor gate.
+			if ( $this->is_labeled_issue_or_pr( $event, $payload ) || $pr_run ) {
 				if ( '' === $actor ) {
 					$record['authorised']      = false;
 					$record['dispatch_reason'] = 'no_sender';
@@ -269,11 +287,17 @@ class Webhook_Routes extends Route_Controller {
 			}
 
 			// Authorised (or an event we never forward) — only an exact trigger
-			// label goes on to dispatch.
-			if ( ! $this->is_label_trigger( $event, $payload ) ) {
+			// label or a PR-run action goes on to dispatch.
+			if ( ! $this->is_label_trigger( $event, $payload ) && ! $pr_run ) {
 				$record['dispatch_reason'] = 'not_karkinos_trigger';
 				return;
 			}
+		}
+
+		// A PR run goes to the Actions tool, not to Karkinos.
+		if ( $pr_run ) {
+			$this->enqueue_act_run( $delivery, $event, $payload, $record );
+			return;
 		}
 
 		$target = $this->target->url();
@@ -303,6 +327,7 @@ class Webhook_Routes extends Route_Controller {
 		$job_id = $this->queue->enqueue(
 			array(
 				'payload'     => $envelope,
+				'kind'        => Dispatch_Job::KIND_KARKINOS,
 				'source'      => 'github',
 				'event'       => $event,
 				'delivery_id' => $delivery,
@@ -322,6 +347,86 @@ class Webhook_Routes extends Route_Controller {
 		// One inline attempt so a healthy home server gets it immediately; if
 		// Karkinos is busy or down the job simply waits for the external tick.
 		$this->worker->run();
+	}
+
+	/**
+	 * Queue an Actions-tool run for a pull request.
+	 *
+	 * The stored payload is the exact body the tool's `run_pr` action expects —
+	 * `{"url": "<PR html_url>"}` — so the worker forwards it verbatim. The tool
+	 * clones on demand and runs whatever workflows the PR head contains, so the
+	 * gateway needs no knowledge of the repo's workflow files.
+	 *
+	 * Caller has already applied the actor gate.
+	 *
+	 * @param string               $delivery X-GitHub-Delivery header (dedupe key).
+	 * @param string               $event    X-GitHub-Event header.
+	 * @param array<string, mixed> $payload  Parsed, verified GitHub payload.
+	 * @param array<string, mixed> $record   Log record, updated by reference.
+	 *
+	 * @return void
+	 */
+	private function enqueue_act_run( string $delivery, string $event, array $payload, array &$record ): void {
+		$target = $this->act_target->url();
+		if ( '' === $target ) {
+			$record['dispatch_reason'] = 'no_act_target';
+			return;
+		}
+
+		$pr_url = $payload['pull_request']['html_url'] ?? null;
+		if ( ! is_string( $pr_url ) || '' === $pr_url ) {
+			$record['dispatch_reason'] = 'no_pr_url';
+			return;
+		}
+
+		$body = wp_json_encode( array( 'url' => $pr_url ), JSON_UNESCAPED_SLASHES );
+		if ( false === $body ) {
+			$record['dispatch_reason'] = 'encode_failed';
+			return;
+		}
+
+		$job_id = $this->queue->enqueue(
+			array(
+				'payload'     => $body,
+				'kind'        => Dispatch_Job::KIND_ACT,
+				'source'      => 'github',
+				'event'       => $event,
+				'delivery_id' => $delivery,
+				'target_url'  => $target,
+			)
+		);
+
+		if ( 0 === $job_id ) {
+			$record['dispatch_reason'] = 'enqueue_failed';
+			return;
+		}
+
+		$record['dispatched']      = true;
+		$record['dispatch_reason'] = 'enqueued_act';
+		$record['job_id']          = $job_id;
+
+		$this->worker->run();
+	}
+
+	/**
+	 * Is this delivery a "run this PR locally" trigger?
+	 *
+	 * True for a `pull_request` event whose action is one of PR_RUN_ACTIONS.
+	 * Actor-gated by the caller, which is what stops a stranger opening PRs to
+	 * burn compute on the home server.
+	 *
+	 * @param string               $event   X-GitHub-Event header.
+	 * @param array<string, mixed> $payload Parsed, verified payload.
+	 *
+	 * @return bool
+	 */
+	private function is_pr_run_trigger( string $event, array $payload ): bool {
+		if ( 'pull_request' !== $event ) {
+			return false;
+		}
+
+		$action = $payload['action'] ?? null;
+		return is_string( $action ) && in_array( $action, self::PR_RUN_ACTIONS, true );
 	}
 
 	/**
