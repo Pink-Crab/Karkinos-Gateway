@@ -19,12 +19,27 @@ namespace Karkinos\Gateway\Dispatch;
 
 final class Dispatch_Job {
 
+	/** Signed envelope POSTed to the Karkinos home server (HMAC + pinned cert). */
+	public const KIND_KARKINOS = 'karkinos';
+
+	/** PR-run request POSTed to the Actions tool on tools.pinkcrab.co.uk (basic auth). */
+	public const KIND_ACT = 'act';
+
+	/**
+	 * Allow-list of kinds. A row with anything else is not dispatchable —
+	 * the worker skips it rather than guessing a protocol.
+	 *
+	 * @var list<string>
+	 */
+	public const KINDS = array( self::KIND_KARKINOS, self::KIND_ACT );
+
 	/**
 	 * Construct directly only in tests / factories. Production code should
 	 * use Dispatch_Job::from_row() so DB casts stay in one place.
 	 */
 	public function __construct(
 		public readonly int $id,
+		public readonly string $kind,
 		public readonly string $source,
 		public readonly string $event,
 		public readonly string $delivery_id,
@@ -55,8 +70,12 @@ final class Dispatch_Job {
 	 * @return self
 	 */
 	public static function from_row( array $row ): self {
+		// Rows written before the kind column existed are Karkinos envelopes.
+		$kind = (string) ( $row['kind'] ?? '' );
+
 		return new self(
 			id:              (int) ( $row['id'] ?? 0 ),
+			kind:            in_array( $kind, self::KINDS, true ) ? $kind : self::KIND_KARKINOS,
 			source:          (string) ( $row['source'] ?? '' ),
 			event:           (string) ( $row['event'] ?? '' ),
 			delivery_id:     (string) ( $row['delivery_id'] ?? '' ),

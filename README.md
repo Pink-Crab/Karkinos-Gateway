@@ -33,11 +33,36 @@ A verified webhook is gated on `sender.login` (GitHub's "who triggered this deli
 
 Either way the response is **202**, so the gate is not observable from GitHub's delivery UI. The gate decision (`actor` / `authorised` / `dispatched` / `dispatch_reason`) is recorded in the webhook log. Bot/App actors (e.g. `github-actions[bot]`) are never in an org-members roster and are dropped (roster-only).
 
+### What actually triggers a forward
+
+Three things, and nothing else:
+
+| Trigger | Event | Goes to |
+|---|---|---|
+| An exact `[karkinos] …` label added to an issue or PR | `issues` / `pull_request`, action `labeled` | Karkinos |
+| A PR's checks finishing | `check_suite`, action `completed`, attached to a PR | Karkinos |
+| A PR opened, reopened, or pushed to | `pull_request`, action `opened` / `reopened` / `synchronize` | Actions tool |
+
+The first and third are **actor-gated**; the second is a bot-sent system event, so the PR + completion condition is the gate instead.
+
+Gating PR runs on `sender.login` is what stops an outsider burning compute on the home server: GitHub sets `sender` to the opener on `opened` and to the **pusher** on `synchronize`, so a stranger opening a PR — or pushing more commits to their own — is dropped both times. A PR opened by a member whose commits were *authored* by a non-member does run; a member pushing it is the vouch.
+
 ### Dispatch model
 
 The queue has two states only, on one column: `dispatched_at` is NULL (not sent) or set (handled). There is **no local single-flight lock** — one-at-a-time is enforced by Karkinos answering its capacity probe (`GET /dispatch/capacity` → `{"available":true|false}`) and holding its own host-wide lock. Each tick: ask "are you busy?" → if free, take the oldest undispatched job, POST the signed envelope to Karkinos, stamp `dispatched_at`. A `2xx` (incl. a deduped `{"duplicate":true}`) or a permanent `4xx` reject stamps the job; a `429`/`5xx`/transport error leaves it NULL to retry on a later tick. A process that dies mid-send simply leaves the job undispatched — the next tick re-sends it (Karkinos dedupes on the delivery id).
 
 Outbound TLS is **pinned to the home server's self-signed cert by identity, not hostname** (the IP rotates): `sslverify` stays on with `KARKINOS_DISPATCH_CA` as the pinned cert; only the hostname match is disabled (`Karkinos_TLS_Pinning`).
+
+#### Job kinds
+
+Every job carries a `kind` naming the protocol used to deliver it:
+
+- **`karkinos`** — capacity probe, HMAC-signed envelope, pinned self-signed cert, to the rotating home-server IP. The default, and what every pre-existing row is treated as.
+- **`act`** — `POST {"url": "<PR html_url>"}` to the Actions tool at `KARKINOS_ACT_URL`, HTTP basic auth, ordinary TLS verification. The tool sits behind a Cloudflare Tunnel with a real certificate and a stable hostname, so there is no IP to track and nothing to pin.
+
+A tick only offers the queue the kinds whose target is currently configured, so an unconfigured — or busy — target leaves its own jobs queued instead of blocking everything behind them. Karkinos answering "busy" stops it being offered more work for that tick while act jobs keep draining.
+
+The Actions tool clones the PR on demand and runs whatever workflows its head contains, so the gateway needs no knowledge of any repo's workflow files.
 
 ### Driving it (external cron on the home server)
 
@@ -72,6 +97,19 @@ define( 'KARKINOS_DISPATCH_CA', '/path/on/gateway/karkinos-ca.pem' );
 // setting: https://{local_server_ip}/dispatch and .../dispatch/capacity.
 // define( 'KARKINOS_DISPATCH_URL', 'https://82.15.236.87/dispatch' );
 // define( 'KARKINOS_CAPACITY_URL', 'https://82.15.236.87/dispatch/capacity' );
+
+// Actions tool (act runner) behind the Cloudflare Tunnel. All three are
+// required together — a partial set is treated as unconfigured and act jobs
+// stay queued rather than being sent unauthenticated.
+define( 'KARKINOS_ACT_URL', 'https://tools.pinkcrab.co.uk/actions/api.php' );
+define( 'KARKINOS_ACT_USER', 'basic-auth-user' );
+define( 'KARKINOS_ACT_PASS', 'basic-auth-password' );
+```
+
+Check the Actions tool is reachable from the gateway (read-only, queues nothing):
+
+```bash
+wp eval 'foreach(["KARKINOS_ACT_URL","KARKINOS_ACT_USER","KARKINOS_ACT_PASS"] as $c){if(!defined($c)){echo "MISSING $c\n";$bad=1;}} if(!empty($bad))exit(1); $r=wp_remote_get(KARKINOS_ACT_URL."?a=state",["timeout"=>15,"headers"=>["Authorization"=>"Basic ".base64_encode(KARKINOS_ACT_USER.":".KARKINOS_ACT_PASS)]]); echo is_wp_error($r)?"ERR: ".$r->get_error_message():wp_remote_retrieve_response_code($r)." ".substr(wp_remote_retrieve_body($r),0,400),PHP_EOL;'
 ```
 
 Export the pinned cert from the home server once (re-pin only if Karkinos regenerates its cert — IP rotation does not require it):

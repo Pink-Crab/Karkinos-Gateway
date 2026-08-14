@@ -1,9 +1,19 @@
 <?php
 /**
- * Drains the dispatch queue to the Karkinos home server.
+ * Drains the dispatch queue to whichever downstream a job is addressed to.
  *
- * The loop is exactly: ask Karkinos "are you busy?" → if free, take the next
- * undispatched job, POST it, stamp dispatched_at. Karkinos holds its own lock
+ * Each job carries a `kind` selecting its protocol:
+ *
+ *   karkinos — capacity probe, HMAC-signed envelope, pinned self-signed cert
+ *   act      — Actions tool on tools.pinkcrab.co.uk, basic auth, ordinary TLS
+ *
+ * Only kinds whose target is currently configured are offered to the queue, so
+ * an unconfigured (or busy) target leaves its own jobs queued instead of
+ * blocking everything behind them.
+ *
+ * For karkinos jobs the loop is exactly: ask Karkinos "are you busy?" → if
+ * free, take the next undispatched job, POST it, stamp dispatched_at. Karkinos
+ * holds its own lock
  * while processing, so its "busy" answer is what serialises delivery — the
  * gateway keeps no local lock. A job is only ever marked dispatched on a
  * terminal outcome (2xx success or 4xx permanent reject); transient outcomes
@@ -37,12 +47,14 @@ class Dispatch_Worker {
 	/**
 	 * Constructor.
 	 *
-	 * @param Dispatch_Queue $queue  Two-state queue (dispatched_at NULL/set).
-	 * @param Forward_Target $target Resolves the Karkinos dispatch + capacity URLs.
+	 * @param Dispatch_Queue $queue      Two-state queue (dispatched_at NULL/set).
+	 * @param Forward_Target $target     Resolves the Karkinos dispatch + capacity URLs.
+	 * @param Act_Target     $act_target Resolves the Actions-tool URL + basic auth.
 	 */
 	public function __construct(
 		private Dispatch_Queue $queue,
-		private Forward_Target $target
+		private Forward_Target $target,
+		private Act_Target $act_target
 	) {}
 
 	/**
@@ -61,7 +73,18 @@ class Dispatch_Worker {
 		$secret = $this->secret();
 		$ca     = $this->ca_path();
 
-		if ( null === $secret || null === $ca || '' === $this->target->url() || '' === $this->target->capacity_url() ) {
+		// Only offer the queue kinds we can actually deliver right now. An
+		// unconfigured target simply leaves its jobs queued instead of
+		// blocking the head of the queue for every other target.
+		$kinds = array();
+		if ( null !== $secret && null !== $ca && '' !== $this->target->url() && '' !== $this->target->capacity_url() ) {
+			$kinds[] = Dispatch_Job::KIND_KARKINOS;
+		}
+		if ( $this->act_target->is_configured() ) {
+			$kinds[] = Dispatch_Job::KIND_ACT;
+		}
+
+		if ( array() === $kinds ) {
 			return array(
 				'sent'     => 0,
 				'rejected' => 0,
@@ -69,17 +92,30 @@ class Dispatch_Worker {
 			);
 		}
 
+		$saw_busy = false;
+
 		for ( $i = 0; $i < self::MAX_PER_RUN; $i++ ) {
-			if ( ! $this->karkinos_is_free( $secret, $ca ) ) {
-				return $this->summary( $sent, $rejected, 'busy' );
-			}
-
-			$job = $this->queue->next();
+			$job = $this->queue->next( $kinds );
 			if ( null === $job ) {
-				return $this->summary( $sent, $rejected, 'empty' );
+				return $this->summary( $sent, $rejected, $saw_busy ? 'busy' : 'empty' );
 			}
 
-			$response = $this->post( $job, $secret, $ca );
+			if ( Dispatch_Job::KIND_ACT === $job->kind ) {
+				$response = $this->post_act( $job );
+			} else {
+				if ( ! $this->karkinos_is_free( (string) $secret, (string) $ca ) ) {
+					// Karkinos is busy. Stop offering it work this tick, but
+					// keep draining any other kind still in the queue.
+					$saw_busy = true;
+					$kinds    = array_values( array_diff( $kinds, array( Dispatch_Job::KIND_KARKINOS ) ) );
+					if ( array() === $kinds ) {
+						return $this->summary( $sent, $rejected, 'busy' );
+					}
+					continue;
+				}
+
+				$response = $this->post( $job, (string) $secret, (string) $ca );
+			}
 
 			if ( is_wp_error( $response ) ) {
 				// Transport failure — leave the job for the next tick.
@@ -177,6 +213,44 @@ class Dispatch_Worker {
 					'X-Karkinos-Delivery'  => $job->delivery_id,
 					'X-Karkinos-Signature' => $signature,
 					'User-Agent'           => 'karkinos-gateway',
+				),
+			)
+		);
+	}
+
+	/**
+	 * POST one act job to the Actions tool.
+	 *
+	 * Deliberately unlike post(): the tool sits behind a Cloudflare Tunnel with
+	 * a real certificate, so TLS verification is ordinary (no pinning) and the
+	 * only credential is HTTP basic auth. The stored payload is already the
+	 * exact JSON body the tool expects ({"url": "<PR html_url>"}).
+	 *
+	 * The job's own target_url is used, not a freshly resolved one, so a job
+	 * always goes where it was addressed when enqueued.
+	 *
+	 * @param Dispatch_Job $job Job to forward.
+	 *
+	 * @return array<string, mixed>|\WP_Error The wp_remote_post result.
+	 */
+	private function post_act( Dispatch_Job $job ): array|\WP_Error {
+		$url = '' !== $job->target_url ? $job->target_url : $this->act_target->url();
+
+		if ( '' === $url ) {
+			return new \WP_Error( 'karkinos_gateway_no_act_target', 'No Actions tool URL resolved.' );
+		}
+
+		return wp_remote_post(
+			$url,
+			array(
+				'timeout'   => self::POST_TIMEOUT,
+				'sslverify' => true,
+				'body'      => $job->payload,
+				'headers'   => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => $this->act_target->auth_header(),
+					'Accept'        => 'application/json',
+					'User-Agent'    => 'karkinos-gateway',
 				),
 			)
 		);

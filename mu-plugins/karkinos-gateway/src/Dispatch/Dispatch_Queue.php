@@ -56,8 +56,13 @@ class Dispatch_Queue {
 	 * SSRF-checked. `payload` is the exact bytes to forward and is stored
 	 * verbatim. dispatched_at is left NULL.
 	 *
+	 * `kind` selects the downstream protocol the worker uses; an unrecognised
+	 * value is rejected outright rather than defaulted, so a typo can't send a
+	 * job down the wrong wire.
+	 *
 	 * @param array{
 	 *     payload:string,
+	 *     kind?:string,
 	 *     source?:string,
 	 *     event?:string,
 	 *     delivery_id?:string,
@@ -68,6 +73,11 @@ class Dispatch_Queue {
 	 */
 	public function enqueue( array $data ): int {
 		global $wpdb;
+
+		$kind = (string) ( $data['kind'] ?? Dispatch_Job::KIND_KARKINOS );
+		if ( ! in_array( $kind, Dispatch_Job::KINDS, true ) ) {
+			return 0;
+		}
 
 		$raw_target_url = (string) ( $data['target_url'] ?? '' );
 		$target_url     = esc_url_raw( $raw_target_url );
@@ -84,6 +94,7 @@ class Dispatch_Queue {
 		}
 
 		$row = array(
+			'kind'        => $kind,
 			'source'      => sanitize_key( $data['source'] ?? '' ),
 			'event'       => sanitize_key( $data['event'] ?? '' ),
 			'delivery_id' => sanitize_text_field( $data['delivery_id'] ?? '' ),
@@ -95,7 +106,7 @@ class Dispatch_Queue {
 		$inserted = $wpdb->insert(
 			$this->table(),
 			$row,
-			array( '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		return false === $inserted ? 0 : (int) $wpdb->insert_id;
@@ -104,15 +115,40 @@ class Dispatch_Queue {
 	/**
 	 * The oldest job not yet dispatched, or null if the queue is empty.
 	 *
+	 * Passing $kinds restricts the search to those kinds, so a target that is
+	 * unconfigured or busy can be excluded without its jobs blocking the head
+	 * of the queue for every other target.
+	 *
+	 * @param list<string> $kinds Kinds to consider; empty means any kind.
+	 *
 	 * @return Dispatch_Job|null
 	 */
-	public function next(): ?Dispatch_Job {
+	public function next( array $kinds = array() ): ?Dispatch_Job {
 		global $wpdb;
+
+		$kinds = array_values( array_intersect( $kinds, Dispatch_Job::KINDS ) );
+
+		if ( array() === $kinds ) {
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					'SELECT * FROM %i WHERE dispatched_at IS NULL ORDER BY created_at ASC, id ASC LIMIT 1',
+					$this->table()
+				),
+				ARRAY_A
+			);
+			return is_array( $row ) ? Dispatch_Job::from_row( $row ) : null;
+		}
+
+		// Legacy rows predate the column and are Karkinos envelopes, so a
+		// request including that kind must also match NULL/'' rows.
+		$legacy      = in_array( Dispatch_Job::KIND_KARKINOS, $kinds, true );
+		$placeholder = implode( ', ', array_fill( 0, count( $kinds ), '%s' ) );
+		$sql         = 'SELECT * FROM %i WHERE dispatched_at IS NULL AND ( kind IN ( ' . $placeholder . ' )'
+			. ( $legacy ? " OR kind IS NULL OR kind = ''" : '' )
+			. ' ) ORDER BY created_at ASC, id ASC LIMIT 1';
+
 		$row = $wpdb->get_row(
-			$wpdb->prepare(
-				'SELECT * FROM %i WHERE dispatched_at IS NULL ORDER BY created_at ASC, id ASC LIMIT 1',
-				$this->table()
-			),
+			$wpdb->prepare( $sql, array_merge( array( $this->table() ), $kinds ) ),
 			ARRAY_A
 		);
 		return is_array( $row ) ? Dispatch_Job::from_row( $row ) : null;
