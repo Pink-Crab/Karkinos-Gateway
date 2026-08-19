@@ -82,7 +82,7 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$rtmedia = (int) strpos( $content, '<h3>rtmedia</h3>' );
 		$this->assertGreaterThan( 0, $jetpack );
 		$this->assertGreaterThan( $jetpack, $rtmedia );
-		$this->assertStringNotContainsString( 'stub-forge', $content );
+		$this->assertStringNotContainsString( 'perique-framework', $content );
 
 		// Versions newest first — 4.10.0 beats 4.7.9 (version sort, not string).
 		$v_new = (int) strpos( $content, 'releases/tag/4.10.0' );
@@ -166,7 +166,7 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 					return $this->json_response(
 						array(
 							array( 'name' => 'rtmedia_stubs' ),
-							array( 'name' => 'stub-forge' ),
+							array( 'name' => 'perique-framework' ),
 							array( 'name' => 'jetpack-crm_stubs' ),
 						)
 					);
