@@ -78,10 +78,11 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'stale', $content );
 
 		// Repos alphabetical, non-stubs repo excluded.
-		$jetpack = (int) strpos( $content, '<h3>jetpack-crm</h3>' );
-		$rtmedia = (int) strpos( $content, '<h3>rtmedia</h3>' );
+		$jetpack = (int) strpos( $content, '<h3 class="wp-block-heading release-title">jetpack-crm</h3>' );
+		$rtmedia = (int) strpos( $content, '<h3 class="wp-block-heading release-title">rtmedia</h3>' );
 		$this->assertGreaterThan( 0, $jetpack );
 		$this->assertGreaterThan( $jetpack, $rtmedia );
+		$this->assertStringContainsString( '<ul class="wp-block-list release-versions">', $content );
 		$this->assertStringNotContainsString( 'perique-framework', $content );
 
 		// Versions newest first — 4.10.0 beats 4.7.9 (version sort, not string).

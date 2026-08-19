@@ -213,12 +213,13 @@ class Blog_Sync {
 
 		foreach ( $sections as $repo => $tags ) {
 			$title = substr( $repo, 0, -strlen( self::STUBS_SUFFIX ) );
-			$html .= '<h3>' . esc_html( $title ) . "</h3>\n<ul>\n";
+			$html .= '<h3 class="wp-block-heading release-title">' . esc_html( $title ) . "</h3>\n"
+				. '<ul class="wp-block-list release-versions">' . "\n";
 
 			foreach ( $tags as $tag ) {
 				$release = sprintf( 'https://github.com/%s/%s/releases/tag/%s', $org, $repo, $tag );
 				$html   .= '<li><a href="' . esc_url( $release ) . '">' . esc_html( $tag ) . '</a>'
-					. ' — <code>' . esc_html( sprintf( 'composer require --dev %s/%s:%s', $vendor, strtolower( $repo ), $tag ) ) . '</code></li>' . "\n";
+					. ' – ' . esc_html( sprintf( 'composer require --dev %s/%s:%s', $vendor, strtolower( $repo ), $tag ) ) . '</li>' . "\n";
 			}
 
 			$html .= "</ul>\n";
