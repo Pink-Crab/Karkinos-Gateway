@@ -84,7 +84,10 @@ class Blog_Sync {
 				return $tags;
 			}
 			if ( array() !== $tags ) {
-				$sections[ $repo ] = $tags;
+				$sections[ $repo ] = array(
+					'tags'   => $tags,
+					'source' => $this->source_url( $repo ),
+				);
 			}
 		}
 
@@ -238,10 +241,12 @@ class Blog_Sync {
 
 	/**
 	 * Render the owned section as Gutenberg block markup: one heading block
-	 * per repo, then a list block with one list-item block per version,
-	 * each linking to its release with the composer require line alongside.
+	 * per repo (linked to the plugin's own repo when known), then a list
+	 * block with one list-item block per version, each linking to its
+	 * release with the composer require line as inline code.
 	 *
-	 * @param array<string, list<string>> $sections Repo name => tags (newest first).
+	 * @param array<string, array{tags: list<string>, source: string}> $sections
+	 *        Repo name => tags (newest first) + upstream plugin URL ('' = none).
 	 *
 	 * @return string Raw block markup for between the markers.
 	 */
@@ -250,19 +255,22 @@ class Blog_Sync {
 		$vendor = $this->vendor();
 		$blocks = array();
 
-		foreach ( $sections as $repo => $tags ) {
-			$title = substr( $repo, 0, -strlen( self::STUBS_SUFFIX ) );
+		foreach ( $sections as $repo => $section ) {
+			$title = esc_html( substr( $repo, 0, -strlen( self::STUBS_SUFFIX ) ) );
+			if ( '' !== $section['source'] ) {
+				$title = '<a href="' . esc_url( $section['source'] ) . '">' . $title . '</a>';
+			}
 
 			$blocks[] = '<!-- wp:heading {"level":3,"className":"release-title"} -->' . "\n"
-				. '<h3 class="wp-block-heading release-title">' . esc_html( $title ) . "</h3>\n"
+				. '<h3 class="wp-block-heading release-title">' . $title . "</h3>\n"
 				. '<!-- /wp:heading -->';
 
 			$items = array();
-			foreach ( $tags as $tag ) {
+			foreach ( $section['tags'] as $tag ) {
 				$release = sprintf( 'https://github.com/%s/%s/releases/tag/%s', $org, $repo, $tag );
 				$items[] = "<!-- wp:list-item -->\n"
 					. '<li><a href="' . esc_url( $release ) . '">' . esc_html( $tag ) . '</a>'
-					. ' - ' . esc_html( sprintf( 'composer require --dev %s/%s:%s', $vendor, strtolower( $repo ), $tag ) ) . "</li>\n"
+					. ' - <code>' . esc_html( sprintf( 'composer require --dev %s/%s:%s', $vendor, strtolower( $repo ), $tag ) ) . "</code></li>\n"
 					. '<!-- /wp:list-item -->';
 			}
 
@@ -296,6 +304,46 @@ class Blog_Sync {
 		return substr( $content, 0, $start + strlen( self::START_MARKER ) )
 			. "\n" . $section
 			. substr( $content, $end );
+	}
+
+	/**
+	 * The upstream plugin repo URL for one stubs repo, read at run time from
+	 * the "Original plugin: <url>" line stub-forge writes into every stubs
+	 * repo README. Missing README/line — or any fetch failure — is non-fatal:
+	 * the heading just renders unlinked.
+	 *
+	 * @param string $repo Stubs repo name (without the org).
+	 *
+	 * @return string Upstream URL, or ''.
+	 */
+	private function source_url( string $repo ): string {
+		$token = $this->token();
+		if ( null === $token ) {
+			return '';
+		}
+
+		$response = wp_remote_get(
+			sprintf( '%s/repos/%s/%s/readme', self::API_BASE, rawurlencode( $this->org() ), rawurlencode( $repo ) ),
+			array(
+				'timeout' => self::TIMEOUT,
+				'headers' => array(
+					'Authorization'        => 'Bearer ' . $token,
+					'Accept'               => 'application/vnd.github.raw+json',
+					'X-GitHub-Api-Version' => '2022-11-28',
+					'User-Agent'           => 'karkinos-gateway',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return '';
+		}
+
+		if ( preg_match( '/Original plugin: <([^>]+)>/', (string) wp_remote_retrieve_body( $response ), $matches ) ) {
+			return trim( $matches[1] );
+		}
+
+		return '';
 	}
 
 	/**
