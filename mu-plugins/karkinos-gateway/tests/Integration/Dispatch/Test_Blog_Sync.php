@@ -82,8 +82,13 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$rtmedia = (int) strpos( $content, '<h3 class="wp-block-heading release-title">rtmedia</h3>' );
 		$this->assertGreaterThan( 0, $jetpack );
 		$this->assertGreaterThan( $jetpack, $rtmedia );
-		$this->assertStringContainsString( '<ul class="wp-block-list release-versions">', $content );
 		$this->assertStringNotContainsString( 'perique-framework', $content );
+
+		// Emitted as Gutenberg block markup, not bare HTML.
+		$this->assertStringContainsString( '<!-- wp:heading {"level":3,"className":"release-title"} -->', $content );
+		$this->assertStringContainsString( '<!-- wp:list {"className":"release-versions"} -->', $content );
+		$this->assertStringContainsString( '<ul class="wp-block-list release-versions"><!-- wp:list-item -->', $content );
+		$this->assertStringContainsString( '<!-- /wp:list-item --></ul>', $content );
 
 		// Versions newest first — 4.10.0 beats 4.7.9 (version sort, not string).
 		$v_new = (int) strpos( $content, 'releases/tag/4.10.0' );

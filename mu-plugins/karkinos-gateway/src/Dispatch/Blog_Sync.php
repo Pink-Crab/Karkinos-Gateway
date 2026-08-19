@@ -199,33 +199,43 @@ class Blog_Sync {
 	}
 
 	/**
-	 * Render the owned section: one heading per repo, each version linking to
-	 * its release with the composer require line alongside.
+	 * Render the owned section as Gutenberg block markup: one heading block
+	 * per repo, then a list block with one list-item block per version,
+	 * each linking to its release with the composer require line alongside.
 	 *
 	 * @param array<string, list<string>> $sections Repo name => tags (newest first).
 	 *
-	 * @return string HTML for between the markers.
+	 * @return string Raw block markup for between the markers.
 	 */
 	private function render( array $sections ): string {
 		$org    = $this->org();
 		$vendor = $this->vendor();
-		$html   = '';
+		$blocks = array();
 
 		foreach ( $sections as $repo => $tags ) {
 			$title = substr( $repo, 0, -strlen( self::STUBS_SUFFIX ) );
-			$html .= '<h3 class="wp-block-heading release-title">' . esc_html( $title ) . "</h3>\n"
-				. '<ul class="wp-block-list release-versions">' . "\n";
 
+			$blocks[] = '<!-- wp:heading {"level":3,"className":"release-title"} -->' . "\n"
+				. '<h3 class="wp-block-heading release-title">' . esc_html( $title ) . "</h3>\n"
+				. '<!-- /wp:heading -->';
+
+			$items = array();
 			foreach ( $tags as $tag ) {
 				$release = sprintf( 'https://github.com/%s/%s/releases/tag/%s', $org, $repo, $tag );
-				$html   .= '<li><a href="' . esc_url( $release ) . '">' . esc_html( $tag ) . '</a>'
-					. ' – ' . esc_html( sprintf( 'composer require --dev %s/%s:%s', $vendor, strtolower( $repo ), $tag ) ) . '</li>' . "\n";
+				$items[] = "<!-- wp:list-item -->\n"
+					. '<li><a href="' . esc_url( $release ) . '">' . esc_html( $tag ) . '</a>'
+					. ' - ' . esc_html( sprintf( 'composer require --dev %s/%s:%s', $vendor, strtolower( $repo ), $tag ) ) . "</li>\n"
+					. '<!-- /wp:list-item -->';
 			}
 
-			$html .= "</ul>\n";
+			$blocks[] = '<!-- wp:list {"className":"release-versions"} -->' . "\n"
+				. '<ul class="wp-block-list release-versions">'
+				. implode( "\n\n", $items )
+				. "</ul>\n"
+				. '<!-- /wp:list -->';
 		}
 
-		return $html;
+		return implode( "\n\n", $blocks );
 	}
 
 	/**
