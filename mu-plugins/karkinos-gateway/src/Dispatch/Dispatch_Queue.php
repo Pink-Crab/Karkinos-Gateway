@@ -128,13 +128,11 @@ class Dispatch_Queue {
 
 		$kinds = array_values( array_unique( array_intersect( $kinds, Dispatch_Job::KINDS ) ) );
 
-		// Asking for every kind is the same as not filtering at all. Keeping the
-		// three queries as literals (rather than composing an IN list) is what
-		// lets each one go through $wpdb->prepare() intact.
-		$wants_karkinos = in_array( Dispatch_Job::KIND_KARKINOS, $kinds, true );
-		$wants_act      = in_array( Dispatch_Job::KIND_ACT, $kinds, true );
-
-		if ( array() === $kinds || ( $wants_karkinos && $wants_act ) ) {
+		// Asking for every kind is the same as not filtering at all. The
+		// queries stay literals (rather than composing an IN list) so each one
+		// goes through $wpdb->prepare() intact — one query per wanted kind,
+		// then the oldest candidate overall wins.
+		if ( array() === $kinds || count( $kinds ) === count( Dispatch_Job::KINDS ) ) {
 			$row = $wpdb->get_row(
 				$wpdb->prepare(
 					'SELECT * FROM %i WHERE dispatched_at IS NULL ORDER BY created_at ASC, id ASC LIMIT 1',
@@ -145,7 +143,38 @@ class Dispatch_Queue {
 			return is_array( $row ) ? Dispatch_Job::from_row( $row ) : null;
 		}
 
-		if ( $wants_karkinos ) {
+		$candidates = array();
+		foreach ( $kinds as $kind ) {
+			$job = $this->next_of_kind( $kind );
+			if ( null !== $job ) {
+				$candidates[] = $job;
+			}
+		}
+
+		if ( array() === $candidates ) {
+			return null;
+		}
+
+		usort(
+			$candidates,
+			static fn( Dispatch_Job $a, Dispatch_Job $b ): int =>
+				array( $a->created_at, $a->id ) <=> array( $b->created_at, $b->id )
+		);
+
+		return $candidates[0];
+	}
+
+	/**
+	 * The oldest undispatched job of one kind, or null.
+	 *
+	 * @param string $kind One of Dispatch_Job::KINDS.
+	 *
+	 * @return Dispatch_Job|null
+	 */
+	private function next_of_kind( string $kind ): ?Dispatch_Job {
+		global $wpdb;
+
+		if ( Dispatch_Job::KIND_KARKINOS === $kind ) {
 			// Rows written before the kind column are Karkinos envelopes, so
 			// NULL/'' has to match here too.
 			$row = $wpdb->get_row(
@@ -163,7 +192,7 @@ class Dispatch_Queue {
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE dispatched_at IS NULL AND kind = %s ORDER BY created_at ASC, id ASC LIMIT 1',
 				$this->table(),
-				Dispatch_Job::KIND_ACT
+				$kind
 			),
 			ARRAY_A
 		);

@@ -35,15 +35,16 @@ Either way the response is **202**, so the gate is not observable from GitHub's 
 
 ### What actually triggers a forward
 
-Three things, and nothing else:
+Four things, and nothing else:
 
 | Trigger | Event | Goes to |
 |---|---|---|
 | An exact `[karkinos] …` label added to an issue or PR | `issues` / `pull_request`, action `labeled` | Karkinos |
 | A PR's checks finishing | `check_suite`, action `completed`, attached to a PR | Karkinos |
 | A PR opened, reopened, or pushed to | `pull_request`, action `opened` / `reopened` / `synchronize` | Actions tool |
+| A release published on an org `*_stubs` repo | `release`, action `published` | Blog stubs-section rebuild |
 
-The first and third are **actor-gated**; the second is a bot-sent system event, so the PR + completion condition is the gate instead.
+The first and third are **actor-gated**; the second is a bot-sent system event, so the PR + completion condition is the gate instead. The fourth is condition-gated the same way — publishing a release on an org repo already requires write access, so repo ownership is the gate.
 
 Gating PR runs on `sender.login` is what stops an outsider burning compute on the home server: GitHub sets `sender` to the opener on `opened` and to the **pusher** on `synchronize`, so a stranger opening a PR — or pushing more commits to their own — is dropped both times. A PR opened by a member whose commits were *authored* by a non-member does run; a member pushing it is the vouch.
 
@@ -59,8 +60,9 @@ Every job carries a `kind` naming the protocol used to deliver it:
 
 - **`karkinos`** — capacity probe, HMAC-signed envelope, pinned self-signed cert, to the rotating home-server IP. The default, and what every pre-existing row is treated as.
 - **`act`** — `POST {"url": "<PR html_url>"}` to the Actions tool at `KARKINOS_ACT_URL`, HTTP basic auth, ordinary TLS verification. The tool sits behind a Cloudflare Tunnel with a real certificate and a stable hostname, so there is no IP to track and nothing to pin.
+- **`blog`** — not a forward: the job is a signal to rebuild the stubs section of the blog post at `KARKINOS_BLOG_URL`. The sync lists the org's `*_stubs` repos and their tags from GitHub, renders the section (versions newest-first, linked to their releases, with the `composer require` line), and rewrites everything between the `<!-- stub-forge:start -->` / `<!-- stub-forge:end -->` markers in the post via the WP REST API (application password, basic auth). Nothing outside the markers is touched, and a rebuild is total + idempotent — queued releases coalesce, backfilled versions land in the right order, and manual edits inside the markers are overwritten. A post with no markers permanently rejects the job (synthesised 422) instead of retrying forever.
 
-A tick only offers the queue the kinds whose target is currently configured, so an unconfigured — or busy — target leaves its own jobs queued instead of blocking everything behind them. Karkinos answering "busy" stops it being offered more work for that tick while act jobs keep draining.
+A tick only offers the queue the kinds whose target is currently configured, so an unconfigured — or busy — target leaves its own jobs queued instead of blocking everything behind them. Karkinos answering "busy" stops it being offered more work for that tick while act and blog jobs keep draining.
 
 The Actions tool clones the PR on demand and runs whatever workflows its head contains, so the gateway needs no knowledge of any repo's workflow files.
 
@@ -104,6 +106,15 @@ define( 'KARKINOS_DISPATCH_CA', '/path/on/gateway/karkinos-ca.pem' );
 define( 'KARKINOS_ACT_URL', 'https://tools.pinkcrab.co.uk/actions/api.php' );
 define( 'KARKINOS_ACT_USER', 'basic-auth-user' );
 define( 'KARKINOS_ACT_PASS', 'basic-auth-password' );
+
+// Blog stubs-section sync. All four are required together — a partial set is
+// treated as unconfigured and blog jobs stay queued. The user/pass pair is a
+// WP application password on the blog with edit rights on the post.
+define( 'KARKINOS_BLOG_URL', 'https://glynnquelch.co.uk' );
+define( 'KARKINOS_BLOG_USER', 'wp-username' );
+define( 'KARKINOS_BLOG_PASS', 'application-password' );
+define( 'KARKINOS_BLOG_POST_ID', 6731 );
+// define( 'KARKINOS_BLOG_VENDOR', 'pinkcrab' ); // optional, composer vendor prefix
 ```
 
 Check the Actions tool is reachable from the gateway (read-only, queues nothing):

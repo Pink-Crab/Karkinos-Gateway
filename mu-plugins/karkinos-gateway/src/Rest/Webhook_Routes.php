@@ -24,6 +24,8 @@ namespace Karkinos\Gateway\Rest;
 
 use Karkinos\Gateway\Auth\Authorised_Actors;
 use Karkinos\Gateway\Dispatch\Act_Target;
+use Karkinos\Gateway\Dispatch\Blog_Sync;
+use Karkinos\Gateway\Dispatch\Blog_Target;
 use Karkinos\Gateway\Dispatch\Dispatch_Job;
 use Karkinos\Gateway\Dispatch\Dispatch_Queue;
 use Karkinos\Gateway\Dispatch\Dispatch_Worker;
@@ -94,12 +96,13 @@ class Webhook_Routes extends Route_Controller {
 	/**
 	 * Constructor.
 	 *
-	 * @param Webhook_Logger    $logger     Writes one JSONL line per delivery.
-	 * @param Authorised_Actors $actors     Roster the sender is gated against.
-	 * @param Dispatch_Queue    $queue      Where an authorised delivery is enqueued.
-	 * @param Forward_Target    $target     Resolves the Karkinos dispatch URL.
-	 * @param Dispatch_Worker   $worker     Drains the queue (one inline attempt on enqueue).
-	 * @param Act_Target        $act_target Resolves the Actions-tool URL.
+	 * @param Webhook_Logger    $logger      Writes one JSONL line per delivery.
+	 * @param Authorised_Actors $actors      Roster the sender is gated against.
+	 * @param Dispatch_Queue    $queue       Where an authorised delivery is enqueued.
+	 * @param Forward_Target    $target      Resolves the Karkinos dispatch URL.
+	 * @param Dispatch_Worker   $worker      Drains the queue (one inline attempt on enqueue).
+	 * @param Act_Target        $act_target  Resolves the Actions-tool URL.
+	 * @param Blog_Target       $blog_target Resolves the blog post endpoint.
 	 */
 	public function __construct(
 		private Webhook_Logger $logger,
@@ -107,7 +110,8 @@ class Webhook_Routes extends Route_Controller {
 		private Dispatch_Queue $queue,
 		private Forward_Target $target,
 		private Dispatch_Worker $worker,
-		private Act_Target $act_target
+		private Act_Target $act_target,
+		private Blog_Target $blog_target
 	) {}
 
 	/**
@@ -262,11 +266,14 @@ class Webhook_Routes extends Route_Controller {
 	private function gate_and_dispatch( string $event, string $delivery, string $actor, array $payload, array &$record ): void {
 		// A CI-finished delivery (check_suite completed for a PR) is a system
 		// event from a bot, so the PR + completion condition is the gate, not
-		// the roster. Everything else we might forward is a labeled issue/PR,
-		// gated on the human who applied the label.
-		$pr_run = $this->is_pr_run_trigger( $event, $payload );
+		// the roster. A stubs release is condition-gated the same way — only
+		// accounts with write access to an org `*_stubs` repo can publish one.
+		// Everything else we might forward is a labeled issue/PR, gated on the
+		// human who applied the label.
+		$pr_run       = $this->is_pr_run_trigger( $event, $payload );
+		$stub_release = $this->is_stub_release_trigger( $event, $payload );
 
-		if ( ! $this->is_ci_finished_trigger( $event, $payload ) ) {
+		if ( ! $this->is_ci_finished_trigger( $event, $payload ) && ! $stub_release ) {
 			// Resolve authorisation for ANY labeled issue/PR — even one whose
 			// label isn't a trigger — so the gate decision is recorded, and for
 			// every PR-run candidate. Other events carry no actor gate.
@@ -297,6 +304,12 @@ class Webhook_Routes extends Route_Controller {
 		// A PR run goes to the Actions tool, not to Karkinos.
 		if ( $pr_run ) {
 			$this->enqueue_act_run( $delivery, $event, $payload, $record );
+			return;
+		}
+
+		// A stubs release triggers a blog rebuild, not a forward.
+		if ( $stub_release ) {
+			$this->enqueue_blog_sync( $delivery, $event, $payload, $record );
 			return;
 		}
 
@@ -403,6 +416,65 @@ class Webhook_Routes extends Route_Controller {
 
 		$record['dispatched']      = true;
 		$record['dispatch_reason'] = 'enqueued_act';
+		$record['job_id']          = $job_id;
+
+		$this->worker->run();
+	}
+
+	/**
+	 * Queue a blog stubs-section rebuild for a published stubs release.
+	 *
+	 * The stored payload only records which release prompted the rebuild —
+	 * Blog_Sync regenerates the whole section from GitHub, so the job needs
+	 * no data beyond its existence. Queued releases coalesce naturally: each
+	 * rebuild is idempotent and total.
+	 *
+	 * Caller has already applied the repo condition gate.
+	 *
+	 * @param string               $delivery X-GitHub-Delivery header (dedupe key).
+	 * @param string               $event    X-GitHub-Event header.
+	 * @param array<string, mixed> $payload  Parsed, verified GitHub payload.
+	 * @param array<string, mixed> $record   Log record, updated by reference.
+	 *
+	 * @return void
+	 */
+	private function enqueue_blog_sync( string $delivery, string $event, array $payload, array &$record ): void {
+		$target = $this->blog_target->post_endpoint();
+		if ( '' === $target ) {
+			$record['dispatch_reason'] = 'no_blog_target';
+			return;
+		}
+
+		$body = wp_json_encode(
+			array(
+				'repo' => $record['repo'],
+				'tag'  => $payload['release']['tag_name'] ?? null,
+			),
+			JSON_UNESCAPED_SLASHES
+		);
+		if ( false === $body ) {
+			$record['dispatch_reason'] = 'encode_failed';
+			return;
+		}
+
+		$job_id = $this->queue->enqueue(
+			array(
+				'payload'     => $body,
+				'kind'        => Dispatch_Job::KIND_BLOG,
+				'source'      => 'github',
+				'event'       => $event,
+				'delivery_id' => $delivery,
+				'target_url'  => $target,
+			)
+		);
+
+		if ( 0 === $job_id ) {
+			$record['dispatch_reason'] = 'enqueue_failed';
+			return;
+		}
+
+		$record['dispatched']      = true;
+		$record['dispatch_reason'] = 'enqueued_blog';
 		$record['job_id']          = $job_id;
 
 		$this->worker->run();
@@ -521,6 +593,55 @@ class Webhook_Routes extends Route_Controller {
 
 		$prs = $payload['check_suite']['pull_requests'] ?? null;
 		return is_array( $prs ) && array() !== $prs;
+	}
+
+	/**
+	 * Is this delivery a "stubs release published" signal?
+	 *
+	 * True only for a `release` event with action `published` whose repository
+	 * is an org-owned `*_stubs` repo. NOT actor-gated: publishing a release on
+	 * an org repo already requires write access, so repo ownership is the gate
+	 * — the same reasoning as the check_suite condition gate. `published` only:
+	 * created/edited/prereleased drafts must not churn the blog.
+	 *
+	 * @param string               $event   X-GitHub-Event header.
+	 * @param array<string, mixed> $payload Parsed, verified payload.
+	 *
+	 * @return bool
+	 */
+	private function is_stub_release_trigger( string $event, array $payload ): bool {
+		if ( 'release' !== $event ) {
+			return false;
+		}
+
+		if ( 'published' !== ( $payload['action'] ?? null ) ) {
+			return false;
+		}
+
+		$full_name = $payload['repository']['full_name'] ?? null;
+		if ( ! is_string( $full_name ) || ! str_contains( $full_name, '/' ) ) {
+			return false;
+		}
+
+		list( $owner, $repo ) = explode( '/', $full_name, 2 );
+
+		return 0 === strcasecmp( $owner, $this->org() )
+			&& str_ends_with( strtolower( $repo ), '_stubs' );
+	}
+
+	/**
+	 * Resolve the org from the wp-config constant, defaulting to Pink-Crab.
+	 *
+	 * @return string
+	 */
+	private function org(): string {
+		if ( defined( 'KARKINOS_GH_ORG' ) ) {
+			$org = constant( 'KARKINOS_GH_ORG' );
+			if ( is_string( $org ) && '' !== trim( $org ) ) {
+				return trim( $org );
+			}
+		}
+		return Blog_Sync::DEFAULT_ORG;
 	}
 
 	/**

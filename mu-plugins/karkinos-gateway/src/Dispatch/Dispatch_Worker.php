@@ -6,6 +6,7 @@
  *
  *   karkinos — capacity probe, HMAC-signed envelope, pinned self-signed cert
  *   act      — Actions tool on tools.pinkcrab.co.uk, basic auth, ordinary TLS
+ *   blog     — rebuild the blog post's stubs section (Blog_Sync), basic auth
  *
  * Only kinds whose target is currently configured are offered to the queue, so
  * an unconfigured (or busy) target leaves its own jobs queued instead of
@@ -47,14 +48,18 @@ class Dispatch_Worker {
 	/**
 	 * Constructor.
 	 *
-	 * @param Dispatch_Queue $queue      Two-state queue (dispatched_at NULL/set).
-	 * @param Forward_Target $target     Resolves the Karkinos dispatch + capacity URLs.
-	 * @param Act_Target     $act_target Resolves the Actions-tool URL + basic auth.
+	 * @param Dispatch_Queue $queue       Two-state queue (dispatched_at NULL/set).
+	 * @param Forward_Target $target      Resolves the Karkinos dispatch + capacity URLs.
+	 * @param Act_Target     $act_target  Resolves the Actions-tool URL + basic auth.
+	 * @param Blog_Target    $blog_target Resolves the blog post endpoint + basic auth.
+	 * @param Blog_Sync      $blog_sync   Rebuilds the blog stubs section for blog jobs.
 	 */
 	public function __construct(
 		private Dispatch_Queue $queue,
 		private Forward_Target $target,
-		private Act_Target $act_target
+		private Act_Target $act_target,
+		private Blog_Target $blog_target,
+		private Blog_Sync $blog_sync
 	) {}
 
 	/**
@@ -83,6 +88,9 @@ class Dispatch_Worker {
 		if ( $this->act_target->is_configured() ) {
 			$kinds[] = Dispatch_Job::KIND_ACT;
 		}
+		if ( $this->blog_target->is_configured() ) {
+			$kinds[] = Dispatch_Job::KIND_BLOG;
+		}
 
 		if ( array() === $kinds ) {
 			return array(
@@ -102,6 +110,12 @@ class Dispatch_Worker {
 
 			if ( Dispatch_Job::KIND_ACT === $job->kind ) {
 				$response = $this->post_act( $job );
+			} elseif ( Dispatch_Job::KIND_BLOG === $job->kind ) {
+				// Not a forward: the job is a signal to rebuild the blog's
+				// stubs section from GitHub. The sync returns the final blog
+				// response (wp_remote shape), so the terminal/transient
+				// handling below applies unchanged.
+				$response = $this->blog_sync->run();
 			} else {
 				if ( ! $this->karkinos_is_free( (string) $secret, (string) $ca ) ) {
 					// Karkinos is busy. Stop offering it work this tick, but
