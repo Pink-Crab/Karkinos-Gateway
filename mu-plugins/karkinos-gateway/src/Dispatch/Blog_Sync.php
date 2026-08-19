@@ -67,9 +67,9 @@ class Blog_Sync {
 	 *         the worker treats the job as transient.
 	 */
 	public function run(): array|WP_Error {
-		$endpoint = $this->target->post_endpoint();
-		if ( '' === $endpoint ) {
-			return new WP_Error( 'karkinos_gateway_no_blog_target', 'Blog target is not configured.' );
+		$endpoint = $this->resolve_endpoint();
+		if ( is_wp_error( $endpoint ) ) {
+			return $endpoint;
 		}
 
 		$repos = $this->stub_repos();
@@ -135,6 +135,44 @@ class Blog_Sync {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Resolve the post's REST endpoint, discovering the post type's REST
+	 * base at run time.
+	 *
+	 * The post's own public page carries its REST URL — core WP prints an
+	 * `application/json` alternate link in the head (rest_output_link_wp_head)
+	 * — so the base never needs configuring by hand. A page with no REST link
+	 * falls back to the default 'posts' base.
+	 *
+	 * @return string|WP_Error Endpoint URL, or WP_Error when unconfigured /
+	 *                         the discovery fetch fails (transient).
+	 */
+	private function resolve_endpoint(): string|WP_Error {
+		if ( ! $this->target->is_configured() ) {
+			return new WP_Error( 'karkinos_gateway_no_blog_target', 'Blog target is not configured.' );
+		}
+
+		$id   = $this->target->post_id();
+		$page = wp_remote_get(
+			add_query_arg( 'p', (string) $id, trailingslashit( $this->target->site_url() ) ),
+			array(
+				'timeout' => self::TIMEOUT,
+				'headers' => array( 'User-Agent' => 'karkinos-gateway' ),
+			)
+		);
+
+		if ( is_wp_error( $page ) ) {
+			return $page;
+		}
+
+		$body = (string) wp_remote_retrieve_body( $page );
+		if ( preg_match( '#wp-json/wp/v2/([a-z0-9_\-]+)/' . $id . '\b#i', $body, $matches ) ) {
+			return trailingslashit( $this->target->site_url() ) . 'wp-json/wp/v2/' . $matches[1] . '/' . $id;
+		}
+
+		return $this->target->post_endpoint();
 	}
 
 	/**
