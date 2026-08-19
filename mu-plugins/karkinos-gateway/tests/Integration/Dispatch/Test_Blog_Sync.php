@@ -87,9 +87,11 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$this->assertStringEndsWith( Blog_Sync::END_MARKER . ' OUTRO', $content );
 		$this->assertStringNotContainsString( 'stale', $content );
 
-		// Repos alphabetical, non-stubs repo excluded.
+		// Repos alphabetical, non-stubs repo excluded. rtmedia's heading links
+		// to the upstream plugin repo (from its README); jetpack-crm's README
+		// has no upstream line so its heading stays plain.
 		$jetpack = (int) strpos( $content, '<h3 class="wp-block-heading release-title">jetpack-crm</h3>' );
-		$rtmedia = (int) strpos( $content, '<h3 class="wp-block-heading release-title">rtmedia</h3>' );
+		$rtmedia = (int) strpos( $content, '<h3 class="wp-block-heading release-title"><a href="https://github.com/rtCamp/rtMedia">rtmedia</a></h3>' );
 		$this->assertGreaterThan( 0, $jetpack );
 		$this->assertGreaterThan( $jetpack, $rtmedia );
 		$this->assertStringNotContainsString( 'perique-framework', $content );
@@ -106,7 +108,7 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $v_new );
 		$this->assertGreaterThan( $v_new, $v_old );
 
-		$this->assertStringContainsString( 'composer require --dev pinkcrab/rtmedia_stubs:4.10.0', $content );
+		$this->assertStringContainsString( '<code>composer require --dev pinkcrab/rtmedia_stubs:4.10.0</code>', $content );
 		$this->assertStringContainsString(
 			'https://github.com/Pink-Crab/rtmedia_stubs/releases/tag/4.7.9',
 			$content
@@ -234,6 +236,23 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 
 				if ( str_contains( $url, '/jetpack-crm_stubs/tags' ) ) {
 					return $this->json_response( array( array( 'name' => '1.0.0' ) ) );
+				}
+
+				// Stubs repo READMEs: rtmedia carries the upstream link,
+				// jetpack-crm has none.
+				if ( str_contains( $url, '/rtmedia_stubs/readme' ) ) {
+					return array(
+						'response' => array( 'code' => 200 ),
+						'body'     => "# rtMedia Stubs\n\n- Original plugin: <https://github.com/rtCamp/rtMedia>\n",
+						'headers'  => array(),
+					);
+				}
+				if ( str_contains( $url, '/jetpack-crm_stubs/readme' ) ) {
+					return array(
+						'response' => array( 'code' => 200 ),
+						'body'     => "# Jetpack CRM Stubs\n",
+						'headers'  => array(),
+					);
 				}
 
 				// Blog: GET fetches the post, POST is the update.
