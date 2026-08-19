@@ -115,6 +115,8 @@ define( 'KARKINOS_BLOG_USER', 'wp-username' );
 define( 'KARKINOS_BLOG_PASS', 'application-password' );
 define( 'KARKINOS_BLOG_POST_ID', 6731 );
 // define( 'KARKINOS_BLOG_VENDOR', 'pinkcrab' ); // optional, composer vendor prefix
+// The post type's REST base (posts / a custom type) is discovered at run time
+// from the post's own page — nothing to configure.
 ```
 
 Check the Actions tool is reachable from the gateway (read-only, queues nothing):

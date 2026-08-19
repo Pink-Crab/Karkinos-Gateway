@@ -12,6 +12,9 @@
  *   KARKINOS_BLOG_PASS     WP application password
  *   KARKINOS_BLOG_POST_ID  ID of the post holding the stubs section
  *
+ * The post type's REST base is discovered at run time by Blog_Sync from the
+ * post's own page, so it is never configured here.
+ *
  * All four must be present; a partially configured target reports itself as
  * unconfigured so the worker leaves blog jobs queued rather than firing
  * unauthenticated requests at the site.
@@ -37,6 +40,15 @@ class Blog_Target {
 
 		return trailingslashit( $this->constant( 'KARKINOS_BLOG_URL' ) )
 			. 'wp-json/wp/v2/posts/' . $this->post_id();
+	}
+
+	/**
+	 * The blog's base URL.
+	 *
+	 * @return string Trimmed KARKINOS_BLOG_URL, or '' when unset.
+	 */
+	public function site_url(): string {
+		return $this->constant( 'KARKINOS_BLOG_URL' );
 	}
 
 	/**

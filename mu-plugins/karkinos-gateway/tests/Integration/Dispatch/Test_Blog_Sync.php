@@ -37,11 +37,15 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 	/** @var array<string, mixed>|null Captured args of the blog update POST. */
 	private ?array $update_args = null;
 
+	/** @var string|null Captured URL of the blog update POST. */
+	private ?string $update_url = null;
+
 	public function set_up(): void {
 		parent::set_up();
 		$this->worker      = App::make( Dispatch_Worker::class );
 		$this->queue       = App::make( Dispatch_Queue::class );
 		$this->update_args = null;
+		$this->update_url  = null;
 		$this->truncate_table();
 	}
 
@@ -64,6 +68,12 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$this->assertSame( 200, $job->response_status );
 
 		$this->assertNotNull( $this->update_args, 'Expected an update POST to the blog.' );
+
+		// Endpoint discovered from the post page's REST link, not assumed.
+		$this->assertSame(
+			KARKINOS_BLOG_URL . '/wp-json/wp/v2/software/' . KARKINOS_BLOG_POST_ID,
+			$this->update_url
+		);
 		$this->assertSame(
 			'Basic ' . base64_encode( KARKINOS_BLOG_USER . ':' . KARKINOS_BLOG_PASS ),
 			$this->update_args['headers']['Authorization']
@@ -118,15 +128,37 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 		$this->assertNull( $this->update_args, 'No update must be sent without markers.' );
 	}
 
+	/** @testdox a post page with no REST link falls back to the posts endpoint */
+	public function test_no_rest_link_falls_back_to_posts(): void {
+		$this->enqueue_blog_job();
+		$this->stub_http( self::POST_CONTENT, false );
+
+		$summary = $this->worker->run();
+
+		$this->assertSame( 1, $summary['sent'] );
+		$this->assertSame(
+			KARKINOS_BLOG_URL . '/wp-json/wp/v2/posts/' . KARKINOS_BLOG_POST_ID,
+			$this->update_url
+		);
+	}
+
 	/** @testdox a GitHub failure is transient: the job is left pending */
 	public function test_github_failure_is_transient(): void {
 		$id = $this->enqueue_blog_job();
 
 		add_filter(
 			'pre_http_request',
-			fn( $pre, $args, $url ) => str_contains( (string) $url, 'api.github.com' )
-				? new WP_Error( 'http_request_failed', 'boom' )
-				: $pre,
+			function ( $pre, $args, $url ) {
+				if ( str_contains( (string) $url, 'api.github.com' ) ) {
+					return new WP_Error( 'http_request_failed', 'boom' );
+				}
+				// The discovery fetch of the post's page succeeds.
+				return array(
+					'response' => array( 'code' => 200 ),
+					'body'     => '<html><head></head><body></body></html>',
+					'headers'  => array(),
+				);
+			},
 			10,
 			3
 		);
@@ -159,14 +191,27 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 	 * Stub GitHub and the blog by URL. The update POST is captured.
 	 *
 	 * @param string $post_content Raw content the post GET returns.
+	 * @param bool   $rest_link    Whether the post's page carries its REST link.
 	 *
 	 * @return void
 	 */
-	private function stub_http( string $post_content = self::POST_CONTENT ): void {
+	private function stub_http( string $post_content = self::POST_CONTENT, bool $rest_link = true ): void {
 		add_filter(
 			'pre_http_request',
-			function ( $pre, $args, $url ) use ( $post_content ) {
+			function ( $pre, $args, $url ) use ( $post_content, $rest_link ) {
 				$url = (string) $url;
+
+				// The ?p= discovery fetch of the post's own page.
+				if ( str_contains( $url, '?p=' ) ) {
+					$link = $rest_link
+						? '<link rel="alternate" type="application/json" href="' . KARKINOS_BLOG_URL . '/wp-json/wp/v2/software/' . KARKINOS_BLOG_POST_ID . '" />'
+						: '';
+					return array(
+						'response' => array( 'code' => 200 ),
+						'body'     => '<html><head>' . $link . '</head><body></body></html>',
+						'headers'  => array(),
+					);
+				}
 
 				if ( str_contains( $url, 'api.github.com/orgs/' ) ) {
 					return $this->json_response(
@@ -194,6 +239,7 @@ class Test_Blog_Sync extends WP_UnitTestCase {
 				// Blog: GET fetches the post, POST is the update.
 				if ( 'POST' === ( $args['method'] ?? '' ) ) {
 					$this->update_args = $args;
+					$this->update_url  = $url;
 					return $this->json_response( array( 'id' => KARKINOS_BLOG_POST_ID ) );
 				}
 
