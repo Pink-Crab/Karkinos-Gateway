@@ -352,6 +352,55 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertEmpty( $this->read_log_lines() );
 	}
 
+	/** @testdox A release published on an org *_stubs repo enqueues a blog job (not actor-gated) */
+	public function test_stub_release_published_enqueues_blog_job(): void {
+		// The inline worker attempt must not complete the sync — fail GitHub so
+		// the job stays pending and observable.
+		remove_all_filters( 'pre_http_request' );
+		add_filter(
+			'pre_http_request',
+			fn() => new \WP_Error( 'http_request_failed', 'offline' ),
+			10,
+			3
+		);
+
+		// Empty roster + any sender — repo ownership is the gate.
+		$body     = $this->release_body( 'Pink-Crab/rtmedia_stubs' );
+		$response = $this->dispatch( 'release', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 1, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'release', $record['event'] );
+		$this->assertTrue( $record['dispatched'] );
+		$this->assertSame( 'enqueued_blog', $record['dispatch_reason'] );
+	}
+
+	/** @testdox A release published on a non-stubs repo is not queued */
+	public function test_release_on_non_stubs_repo_not_queued(): void {
+		$body     = $this->release_body( 'Pink-Crab/perique-framework' );
+		$response = $this->dispatch( 'release', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
+	/** @testdox A non-published release action on a stubs repo is not queued */
+	public function test_release_created_action_not_queued(): void {
+		$body     = $this->release_body( 'Pink-Crab/rtmedia_stubs', 'created' );
+		$response = $this->dispatch( 'release', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 0, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
 	/** @testdox A request body larger than the cap is rejected with 413 and never logged */
 	public function test_oversized_body_returns_413_and_skips_logging(): void {
 		// Valid JSON above the 5 MiB MAX_BODY_BYTES cap. Must parse cleanly
@@ -388,6 +437,25 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 				'label'      => array( 'name' => $label ),
 				'repository' => array( 'full_name' => 'Pink-Crab/repo' ),
 				'sender'     => array( 'login' => $sender_login ),
+			)
+		);
+	}
+
+	/**
+	 * Build a release event body for a given repo and action.
+	 *
+	 * @param string $full_name Repository full_name.
+	 * @param string $action    Release action.
+	 *
+	 * @return string JSON body.
+	 */
+	private function release_body( string $full_name, string $action = 'published' ): string {
+		return (string) wp_json_encode(
+			array(
+				'action'     => $action,
+				'release'    => array( 'tag_name' => '4.10.0' ),
+				'repository' => array( 'full_name' => $full_name ),
+				'sender'     => array( 'login' => 'glynn-quelch' ),
 			)
 		);
 	}

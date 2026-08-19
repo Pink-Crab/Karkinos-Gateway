@@ -25,13 +25,16 @@ final class Dispatch_Job {
 	/** PR-run request POSTed to the Actions tool on tools.pinkcrab.co.uk (basic auth). */
 	public const KIND_ACT = 'act';
 
+	/** Stub-release trigger: rebuild the blog post's stubs section from GitHub. */
+	public const KIND_BLOG = 'blog';
+
 	/**
 	 * Allow-list of kinds. A row with anything else is not dispatchable —
 	 * the worker skips it rather than guessing a protocol.
 	 *
 	 * @var list<string>
 	 */
-	public const KINDS = array( self::KIND_KARKINOS, self::KIND_ACT );
+	public const KINDS = array( self::KIND_KARKINOS, self::KIND_ACT, self::KIND_BLOG );
 
 	/**
 	 * Construct directly only in tests / factories. Production code should

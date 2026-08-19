@@ -109,6 +109,42 @@ class Test_Dispatch_Queue extends WP_UnitTestCase {
 		$this->assertSame( $second, $next->id );
 	}
 
+	/** @testdox next filtered to one kind skips older jobs of other kinds */
+	public function test_next_filters_by_kind(): void {
+		$this->queue->enqueue( array( 'payload' => '{"n":1}' ) ); // karkinos (default kind)
+		$blog = $this->queue->enqueue(
+			array(
+				'payload' => '{"n":2}',
+				'kind'    => Dispatch_Job::KIND_BLOG,
+			)
+		);
+
+		$next = $this->queue->next( array( Dispatch_Job::KIND_BLOG ) );
+		$this->assertNotNull( $next );
+		$this->assertSame( $blog, $next->id );
+	}
+
+	/** @testdox next over a subset of kinds returns the oldest job among them */
+	public function test_next_subset_of_kinds_returns_oldest(): void {
+		$this->queue->enqueue( array( 'payload' => '{"n":1}' ) ); // karkinos — excluded
+		$act = $this->queue->enqueue(
+			array(
+				'payload' => '{"n":2}',
+				'kind'    => Dispatch_Job::KIND_ACT,
+			)
+		);
+		$this->queue->enqueue(
+			array(
+				'payload' => '{"n":3}',
+				'kind'    => Dispatch_Job::KIND_BLOG,
+			)
+		);
+
+		$next = $this->queue->next( array( Dispatch_Job::KIND_ACT, Dispatch_Job::KIND_BLOG ) );
+		$this->assertNotNull( $next );
+		$this->assertSame( $act, $next->id );
+	}
+
 	/** @testdox mark_dispatched stamps dispatched_at and records the response */
 	public function test_mark_dispatched_records_response(): void {
 		$id = $this->queue->enqueue( array( 'payload' => '{}' ) );
