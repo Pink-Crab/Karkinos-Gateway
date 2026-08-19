@@ -114,7 +114,8 @@ define( 'KARKINOS_BLOG_URL', 'https://glynnquelch.co.uk' );
 define( 'KARKINOS_BLOG_USER', 'wp-username' );
 define( 'KARKINOS_BLOG_PASS', 'application-password' );
 define( 'KARKINOS_BLOG_POST_ID', 6731 );
-// define( 'KARKINOS_BLOG_VENDOR', 'pinkcrab' ); // optional, composer vendor prefix
+// define( 'KARKINOS_BLOG_REST_BASE', 'software' ); // optional, REST base of the post's type (default 'posts')
+// define( 'KARKINOS_BLOG_VENDOR', 'pinkcrab' );    // optional, composer vendor prefix
 ```
 
 Check the Actions tool is reachable from the gateway (read-only, queues nothing):

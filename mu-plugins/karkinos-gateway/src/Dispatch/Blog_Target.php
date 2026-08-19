@@ -7,10 +7,13 @@
  * URL is a plain wp-config constant and the credential is a WP application
  * password sent as HTTP basic auth.
  *
- *   KARKINOS_BLOG_URL      https://glynnquelch.co.uk
- *   KARKINOS_BLOG_USER     WP username the application password belongs to
- *   KARKINOS_BLOG_PASS     WP application password
- *   KARKINOS_BLOG_POST_ID  ID of the post holding the stubs section
+ *   KARKINOS_BLOG_URL        https://glynnquelch.co.uk
+ *   KARKINOS_BLOG_USER       WP username the application password belongs to
+ *   KARKINOS_BLOG_PASS       WP application password
+ *   KARKINOS_BLOG_POST_ID    ID of the post holding the stubs section
+ *   KARKINOS_BLOG_REST_BASE  optional REST base of the post's type (default
+ *                            'posts'; a custom post type uses its own base,
+ *                            e.g. 'software')
  *
  * All four must be present; a partially configured target reports itself as
  * unconfigured so the worker leaves blog jobs queued rather than firing
@@ -36,7 +39,18 @@ class Blog_Target {
 		}
 
 		return trailingslashit( $this->constant( 'KARKINOS_BLOG_URL' ) )
-			. 'wp-json/wp/v2/posts/' . $this->post_id();
+			. 'wp-json/wp/v2/' . $this->rest_base() . '/' . $this->post_id();
+	}
+
+	/**
+	 * REST base of the target post's type. A custom post type registers its
+	 * own base (show_in_rest / rest_base), so this is configurable.
+	 *
+	 * @return string Base from KARKINOS_BLOG_REST_BASE, or 'posts'.
+	 */
+	public function rest_base(): string {
+		$base = trim( $this->constant( 'KARKINOS_BLOG_REST_BASE' ), '/' );
+		return '' !== $base ? $base : 'posts';
 	}
 
 	/**
