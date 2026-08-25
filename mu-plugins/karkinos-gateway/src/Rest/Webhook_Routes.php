@@ -56,19 +56,7 @@ class Webhook_Routes extends Route_Controller {
 	 * this, applied by an authorised actor, is forwarded. Matching is
 	 * case-insensitive.
 	 *
-	 * No closing bracket, deliberately. Both conventions are in use and both
-	 * have to match — the suffix outside the brackets, which is what is on the
-	 * repos today:
-	 *
-	 *     [karkinos]            [karkinos] Abort            [karkinos] Pause
-	 *
-	 * and the suffix inside them:
-	 *
-	 *     [karkinos abort]      [karkinos pause]
-	 *
-	 * `[karkinos]` as the prefix silently drops every one of the second form:
-	 * `[karkinos abort]` begins `[karkinos ` and would never trigger, while
-	 * looking in the webhook log exactly like a label nobody meant to act on.
+	 *     karkinos            karkinos-pause            karkinos-abort
 	 *
 	 * A prefix rather than an allow-list on purpose. This used to be eleven
 	 * exact labels named after the routines of the version before this one, and
@@ -77,12 +65,17 @@ class Webhook_Routes extends Route_Controller {
 	 * WordPress mu-plugin to add a word. Karkinos reads `payload.label.name`
 	 * out of the envelope and decides what, if anything, the suffix means.
 	 *
+	 * The bracketed `[karkinos] Abort` form this replaces does not match and is
+	 * not meant to: those labels are still on several repos, they name routines
+	 * that no longer exist, and a prefix with no bracket in it retires the lot
+	 * of them without anybody deleting a label.
+	 *
 	 * What is given up: a label nobody downstream acts on now reaches Karkinos
 	 * and is dropped there rather than being refused at the door and recorded
 	 * here as `not_karkinos_trigger`. The actor gate is unchanged and is what
 	 * actually protects the home server — only org members get this far.
 	 */
-	private const KARKINOS_TRIGGER_PREFIX = '[karkinos';
+	private const KARKINOS_TRIGGER_PREFIX = 'karkinos';
 
 	/**
 	 * Events acknowledged (202) but neither parsed, logged, nor forwarded —
@@ -534,9 +527,8 @@ class Webhook_Routes extends Route_Controller {
 	 *
 	 * True for an `issues` or `pull_request` event with action `labeled` where
 	 * the label just added (`payload.label.name`) begins with
-	 * KARKINOS_TRIGGER_PREFIX — which carries no closing bracket, so both
-	 * `[karkinos] Abort` and `[karkinos abort]` match. Case-insensitive, and the
-	 * surrounding whitespace GitHub permits in a label name is trimmed first.
+	 * KARKINOS_TRIGGER_PREFIX. Case-insensitive, and the surrounding whitespace
+	 * GitHub permits in a label name is trimmed before matching.
 	 *
 	 * What the suffix means is Karkinos' decision, not this one — the whole
 	 * label travels in the envelope.
