@@ -50,26 +50,32 @@ class Webhook_Routes extends Route_Controller {
 	private const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 	/**
-	 * Exact set of labels that trigger a Karkinos routine. Adding one of these
-	 * to an issue OR pull request (action `labeled`) by an authorised actor is
-	 * forwarded; a `[karkinos]`-prefixed label not in this list is not. Karkinos
-	 * reads which routine to run from the label in the payload.
+	 * Label prefix that triggers a forward to Karkinos.
 	 *
-	 * @var list<string>
+	 * Any label on an issue OR pull request (action `labeled`) beginning with
+	 * this, applied by an authorised actor, is forwarded. Matching is
+	 * case-insensitive.
+	 *
+	 *     karkinos            karkinos-pause            karkinos-abort
+	 *
+	 * A prefix rather than an allow-list on purpose. This used to be eleven
+	 * exact labels named after the routines of the version before this one, and
+	 * the gateway does not know what Karkinos can currently do — it is the wrong
+	 * place to hold that list, because keeping the two in step means deploying a
+	 * WordPress mu-plugin to add a word. Karkinos reads `payload.label.name`
+	 * out of the envelope and decides what, if anything, the suffix means.
+	 *
+	 * The bracketed `[karkinos] Abort` form this replaces does not match and is
+	 * not meant to: those labels are still on several repos, they name routines
+	 * that no longer exist, and a prefix with no bracket in it retires the lot
+	 * of them without anybody deleting a label.
+	 *
+	 * What is given up: a label nobody downstream acts on now reaches Karkinos
+	 * and is dropped there rather than being refused at the door and recorded
+	 * here as `not_karkinos_trigger`. The actor gate is unchanged and is what
+	 * actually protects the home server — only org members get this far.
 	 */
-	private const KARKINOS_TRIGGER_LABELS = array(
-		'[karkinos] Abort',
-		'[karkinos] Builder',
-		'[karkinos] Designer',
-		'[karkinos] Guardian',
-		'[karkinos] Pause',
-		'[karkinos] Planner',
-		'[karkinos] PlannerReview',
-		'[karkinos] ProjectBriefing',
-		'[karkinos] Reviewer',
-		'[karkinos] ReviewFixer',
-		'[karkinos] Triage',
-	);
+	private const KARKINOS_TRIGGER_PREFIX = 'karkinos';
 
 	/**
 	 * Events acknowledged (202) but neither parsed, logged, nor forwarded —
@@ -517,12 +523,15 @@ class Webhook_Routes extends Route_Controller {
 	}
 
 	/**
-	 * Is this delivery a Karkinos routine label trigger?
+	 * Is this delivery a Karkinos label trigger?
 	 *
-	 * True only for an `issues` or `pull_request` event with action `labeled`
-	 * where the label just added (`payload.label.name`) is one of
-	 * KARKINOS_TRIGGER_LABELS. The match is case-insensitive but otherwise
-	 * exact — a `[karkinos]` label that isn't in the list does not trigger.
+	 * True for an `issues` or `pull_request` event with action `labeled` where
+	 * the label just added (`payload.label.name`) begins with
+	 * KARKINOS_TRIGGER_PREFIX. Case-insensitive, and the surrounding whitespace
+	 * GitHub permits in a label name is trimmed before matching.
+	 *
+	 * What the suffix means is Karkinos' decision, not this one — the whole
+	 * label travels in the envelope.
 	 *
 	 * @param string               $event   X-GitHub-Event header.
 	 * @param array<string, mixed> $payload Parsed, verified payload.
@@ -539,14 +548,10 @@ class Webhook_Routes extends Route_Controller {
 			return false;
 		}
 
-		$needle = strtolower( $label );
-		foreach ( self::KARKINOS_TRIGGER_LABELS as $allowed ) {
-			if ( strtolower( $allowed ) === $needle ) {
-				return true;
-			}
-		}
-
-		return false;
+		return str_starts_with(
+			strtolower( trim( $label ) ),
+			strtolower( self::KARKINOS_TRIGGER_PREFIX )
+		);
 	}
 
 	/**
