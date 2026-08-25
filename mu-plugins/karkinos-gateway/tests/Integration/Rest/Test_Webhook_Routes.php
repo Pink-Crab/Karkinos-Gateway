@@ -156,18 +156,65 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
 	}
 
-	/** @testdox A [karkinos]-prefixed label not in the trigger set is not queued */
-	public function test_unknown_karkinos_label_not_queued(): void {
+	/**
+	 * The bracketed form is the previous version's and is deliberately dead.
+	 *
+	 * `[karkinos] Reviewer`, `[karkinos] Builder` and the rest are still on
+	 * several repositories and name routines that no longer exist. The prefix
+	 * carries no bracket precisely so that all of them stop triggering without
+	 * anybody deleting a label — so this asserts the retirement, not an
+	 * accident.
+	 *
+	 * @testdox The previous version's bracketed [karkinos] labels no longer trigger
+	 */
+	public function test_bracketed_legacy_label_no_longer_triggers(): void {
 		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
 
-		$body     = $this->event_body( 'octocat', '[karkinos] Bogus' );
+		$body     = $this->event_body( 'octocat', '[karkinos] Reviewer' );
 		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
 
 		$this->assertSame( 202, $response->get_status() );
 		$this->assertSame( 0, $this->queue->pending_count() );
 
 		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertTrue( $record['authorised'] );
+		$this->assertFalse( $record['dispatched'] );
 		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
+	}
+
+	/**
+	 * Anything suffixed to the prefix triggers, whatever the suffix is.
+	 *
+	 * The gateway does not hold the list of what Karkinos can do — it forwards
+	 * the whole label as `payload.label.name` and Karkinos decides what, if
+	 * anything, the suffix means. A suffix this end has never heard of is
+	 * therefore a forward, not a refusal.
+	 *
+	 * @testdox Any karkinos- suffixed label triggers, whatever the suffix
+	 */
+	public function test_suffixed_karkinos_label_enqueues(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body     = $this->event_body( 'octocat', 'karkinos-something-nobody-has-built' );
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 1, $this->queue->pending_count() );
+
+		$record = json_decode( $this->read_log_lines()[0], true );
+		$this->assertTrue( $record['dispatched'] );
+		$this->assertSame( 'enqueued', $record['dispatch_reason'] );
+	}
+
+	/** @testdox The prefix match ignores case and surrounding whitespace */
+	public function test_prefix_match_is_case_and_whitespace_insensitive(): void {
+		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
+
+		$body     = $this->event_body( 'octocat', '  Karkinos-Pause  ' );
+		$response = $this->dispatch( 'issues', $body, $this->sign( $body ) );
+
+		$this->assertSame( 202, $response->get_status() );
+		$this->assertSame( 1, $this->queue->pending_count() );
 	}
 
 	/** @testdox The gate decision is recorded in the log */
@@ -292,14 +339,14 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 		$this->assertSame( 'not_karkinos_trigger', $record['dispatch_reason'] );
 	}
 
-	/** @testdox A [karkinos] label on a pull_request (authorised) is enqueued */
+	/** @testdox A karkinos label on a pull_request (authorised) is enqueued */
 	public function test_pull_request_karkinos_label_enqueues(): void {
 		$this->actors->replace( array( 'octocat' ), 'Pink-Crab' );
 
 		$body = wp_json_encode(
 			array(
 				'action'       => 'labeled',
-				'label'        => array( 'name' => '[karkinos] Reviewer' ),
+				'label'        => array( 'name' => 'karkinos' ),
 				'pull_request' => array( 'number' => 5 ),
 				'repository'   => array( 'full_name' => 'Pink-Crab/repo' ),
 				'sender'       => array( 'login' => 'octocat' ),
@@ -429,7 +476,7 @@ class Test_Webhook_Routes extends WP_UnitTestCase {
 	 *
 	 * @return string JSON body.
 	 */
-	private function event_body( string $sender_login, string $label = '[karkinos] Reviewer' ): string {
+	private function event_body( string $sender_login, string $label = 'karkinos' ): string {
 		return (string) wp_json_encode(
 			array(
 				'action'     => 'labeled',
