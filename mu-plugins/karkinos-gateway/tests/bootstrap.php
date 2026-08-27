@@ -56,6 +56,18 @@ if ( ! defined( 'KARKINOS_BLOG_POST_ID' ) ) {
 	define( 'KARKINOS_BLOG_POST_ID', 6731 );
 }
 
+// URL-reports tool target. Fixed test host — HTTP is stubbed via
+// pre_http_request, nothing is ever sent.
+if ( ! defined( 'KARKINOS_REPORTS_URL' ) ) {
+	define( 'KARKINOS_REPORTS_URL', 'https://tools.example/url-reports/api.php' );
+}
+if ( ! defined( 'KARKINOS_REPORTS_USER' ) ) {
+	define( 'KARKINOS_REPORTS_USER', 'phpunit' );
+}
+if ( ! defined( 'KARKINOS_REPORTS_PASS' ) ) {
+	define( 'KARKINOS_REPORTS_PASS', 'phpunit-reports-pass' );
+}
+
 tests_add_filter(
 	'muplugins_loaded',
 	static function (): void {

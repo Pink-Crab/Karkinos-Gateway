@@ -17,6 +17,7 @@ return array(
 	\Karkinos\Gateway\Rest\Query_Routes::class,
 	\Karkinos\Gateway\Rest\Actors_Routes::class,
 	\Karkinos\Gateway\Rest\Dispatch_Routes::class,
+	\Karkinos\Gateway\Rest\Reports_Routes::class,
 
 	// Post types.
 	\Karkinos\Gateway\PostType\AI_Log::class,
